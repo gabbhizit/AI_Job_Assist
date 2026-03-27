@@ -86,6 +86,18 @@ export function JobCard({
               {salary && <span>{salary}</span>}
               {postedAt && <span>{formatDate(postedAt)}</span>}
             </div>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {scoreBreakdown.is_h1b_sponsor && (
+                <Badge className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-0">
+                  ✓ H1B Sponsor
+                </Badge>
+              )}
+              {scoreBreakdown.is_everify && (
+                <Badge className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-0">
+                  ✓ E-Verified
+                </Badge>
+              )}
+            </div>
           </div>
           <div className={`text-2xl font-bold ${scoreColor}`}>{score}</div>
         </div>

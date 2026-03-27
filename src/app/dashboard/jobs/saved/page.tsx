@@ -87,6 +87,18 @@ export default function SavedJobsPage() {
                         </Badge>
                       )}
                     </div>
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {match.score_breakdown.is_h1b_sponsor && (
+                        <Badge className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-0">
+                          ✓ H1B Sponsor
+                        </Badge>
+                      )}
+                      {match.score_breakdown.is_everify && (
+                        <Badge className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-0">
+                          ✓ E-Verified
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground mt-2 italic">
                       {match.score_breakdown.explanation}
                     </p>

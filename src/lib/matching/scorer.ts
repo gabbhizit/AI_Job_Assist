@@ -174,19 +174,30 @@ function scoreRecency(postedAt: string | null): number {
 
 // ============================================
 // Sponsor Signal (5 points max)
+// Returns score + both badge flags
 // ============================================
 async function scoreSponsor(
   company: string,
   supabase: SupabaseClient
-): Promise<number> {
-  const companyLower = company.toLowerCase().trim();
+): Promise<{ score: number; isH1bSponsor: boolean; isEverify: boolean }> {
+  // Normalize: lowercase, strip common suffixes like Inc, LLC, Corp, Ltd
+  const companyLower = company
+    .toLowerCase()
+    .trim()
+    .replace(/\b(inc\.?|llc\.?|corp\.?|ltd\.?|co\.?|company)\b/g, "")
+    .trim();
+
   const { data } = await supabase
     .from("sponsor_friendly_companies")
-    .select("company_name")
+    .select("company_name, is_everify")
     .eq("company_name", companyLower)
-    .single();
+    .single() as { data: { company_name: string; is_everify: boolean } | null };
 
-  return data ? 5 : 0;
+  return {
+    score: data ? 5 : 0,
+    isH1bSponsor: !!data,
+    isEverify: data?.is_everify ?? false,
+  };
 }
 
 // ============================================
@@ -256,7 +267,7 @@ export async function computeMatchScore(
     job.experience_level
   );
   const recencyScore = scoreRecency(job.posted_at);
-  const sponsorScore = await scoreSponsor(job.company, supabase);
+  const { score: sponsorScore, isH1bSponsor, isEverify } = await scoreSponsor(job.company, supabase);
 
   const total =
     titleScore +
@@ -289,7 +300,7 @@ export async function computeMatchScore(
     matchedSkills,
     job.skills_extracted.length,
     titleMatchType,
-    sponsorScore > 0
+    isH1bSponsor
   );
 
   return {
@@ -301,6 +312,8 @@ export async function computeMatchScore(
     sponsor: sponsorScore,
     total,
     explanation,
+    is_h1b_sponsor: isH1bSponsor,
+    is_everify: isEverify,
   };
 }
 
