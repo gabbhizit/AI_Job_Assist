@@ -20,6 +20,7 @@ A SaaS MVP for MS CS students on F1/OPT visas in the US. Core value: daily perso
 | Rule-based matching (not LLM) | Zero cost, fast, explainable scores, good enough for MVP |
 | shadcn/ui + Tailwind v4 | Uses `@base-ui/react` — NOT Radix, so `asChild` prop doesn't exist on Button |
 | Supabase clients are untyped | Supabase v2.100.0 TypeScript inference breaks with manually-written DB types → removed `<Database>` generic from all clients to avoid `.update()/.insert()` resolving to `never` |
+| Chrome Extension — plain JS/MV3 | No build step. Supabase UMD bundle vendored in `lib/`. Uses `chrome.identity.launchWebAuthFlow` for OAuth (implicit flow, not PKCE). Talks directly to Supabase REST — does NOT call Next.js API routes. |
 
 ---
 
@@ -126,6 +127,16 @@ src/
 supabase/
   migrations/001_initial_schema.sql   — full DB schema with RLS, indexes, triggers
   seed/sponsor-companies.sql          — ~100 known H1B sponsor companies
+chrome-extension/                     — Chrome MV3 extension (plain JS, no build step)
+  manifest.json                       — MV3 config: permissions, content_scripts, host_permissions
+  config.js                           — public Supabase URL + anon key (safe to bundle)
+  background/service-worker.js        — auth (launchWebAuthFlow), token refresh, Supabase queries
+  popup/popup.{html,js,css}           — minimal popup: auth status + connect/disconnect
+  content/autofill-core.js            — shared field registry, fill engine, floating button, toast
+  content/linkedin.js                 — MutationObserver for LinkedIn Easy Apply modal
+  content/greenhouse.js               — Greenhouse application form autofill
+  content/lever.js                    — Lever application form autofill
+  lib/supabase-min.js                 — vendored Supabase UMD build (exposes window.supabase)
 ```
 
 ---
@@ -198,6 +209,13 @@ npm run dev          # start dev server on port 3000
 npm run build        # verify TypeScript compiles (run before pushing)
 ```
 
+**Load the Chrome Extension:**
+1. Open `chrome://extensions`, enable Developer mode
+2. Click "Load unpacked" → select `chrome-extension/` folder
+3. Note extension ID shown (needed for Supabase redirect URL)
+4. In Supabase Dashboard → Auth → URL Config → add `https://*.chromiumapp.org/oauth` to Allowed Redirect URLs
+5. Click extension icon → "Connect Account" → Google OAuth → done
+
 **Manually trigger the pipeline:**
 ```bash
 curl -X GET "http://localhost:3000/api/cron/daily-pipeline" \
@@ -224,6 +242,7 @@ SUPABASE_ACCESS_TOKEN=<token> npx supabase db query --linked "SELECT COUNT(*) FR
 - SerpAPI + Adzuna + The Muse + JSearch (fallback) job sources
 - sponsor_friendly_companies seed table
 - Full DB schema with RLS
+- Chrome Extension (MV3) — autofill for LinkedIn Easy Apply, Greenhouse, Lever
 
 ### 🚧 Remaining (Weeks 3–4)
 - [ ] Resend email integration — daily digest + pipeline failure alerts
@@ -240,3 +259,4 @@ SUPABASE_ACCESS_TOKEN=<token> npx supabase db query --linked "SELECT COUNT(*) FR
 - LinkedIn profile import
 - Feedback-based match weight adjustment
 - OCR for image-based PDFs
+- Chrome Extension Phase 2: Workday support (cross-origin iframes, ARIA textbox roles), multi-entry education/work history, autofill analytics, Chrome Web Store publish
