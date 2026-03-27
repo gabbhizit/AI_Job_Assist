@@ -74,10 +74,10 @@ export default function SavedJobsPage() {
                     <h3 className="font-semibold text-lg">
                       {match.jobs.title}
                     </h3>
-                    <p className="text-muted-foreground">
+                    <p className="text-foreground/80 font-medium">
                       {match.jobs.company}
                     </p>
-                    <div className="flex gap-2 mt-1 text-sm text-muted-foreground">
+                    <div className="flex gap-2 mt-1 text-sm text-foreground/60">
                       {match.jobs.location && (
                         <span>{match.jobs.location}</span>
                       )}
@@ -99,7 +99,7 @@ export default function SavedJobsPage() {
                         </Badge>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground mt-2 italic">
+                    <p className="text-sm text-foreground/70 mt-2 leading-relaxed">
                       {match.score_breakdown.explanation}
                     </p>
                   </div>

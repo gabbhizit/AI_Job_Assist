@@ -75,8 +75,8 @@ export function JobCard({
         <div className="flex justify-between items-start gap-4">
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-lg truncate">{title}</h3>
-            <p className="text-muted-foreground">{company}</p>
-            <div className="flex flex-wrap gap-2 mt-2 text-sm text-muted-foreground">
+            <p className="text-foreground/80 font-medium">{company}</p>
+            <div className="flex flex-wrap gap-2 mt-1.5 text-sm text-foreground/60">
               {location && <span>{location}</span>}
               {isRemote && (
                 <Badge variant="secondary" className="text-xs">
@@ -103,7 +103,7 @@ export function JobCard({
         </div>
 
         {/* Why matched */}
-        <p className="text-sm text-muted-foreground mt-3 italic">
+        <p className="text-sm text-foreground/70 mt-3 leading-relaxed">
           {scoreBreakdown.explanation}
         </p>
 
