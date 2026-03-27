@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Job Copilot</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="header">
+    <span class="logo">✦</span>
+    <span class="title">AI Job Copilot</span>
+  </div>
+
+  <div id="state-loading" class="state">
+    <p class="muted">Loading...</p>
+  </div>
+
+  <div id="state-signed-out" class="state hidden">
+    <p class="description">Connect your account to enable autofill on LinkedIn, Greenhouse, and Lever.</p>
+    <button id="btn-connect" class="btn btn-primary">Connect Account</button>
+  </div>
+
+  <div id="state-signed-in" class="state hidden">
+    <div class="user-row">
+      <div class="user-dot"></div>
+      <span id="user-email" class="user-email">Connected</span>
+    </div>
+    <div id="tab-status" class="tab-status"></div>
+    <button id="btn-disconnect" class="btn btn-ghost">Disconnect</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

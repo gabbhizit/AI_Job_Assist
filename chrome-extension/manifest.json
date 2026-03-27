@@ -1,0 +1,63 @@
+{
+  "manifest_version": 3,
+  "name": "AI Job Copilot Autofill",
+  "version": "1.0.0",
+  "description": "Autofill job applications using your parsed resume from AI Job Copilot.",
+
+  "permissions": [
+    "identity",
+    "storage",
+    "tabs",
+    "activeTab",
+    "scripting"
+  ],
+
+  "host_permissions": [
+    "https://*.linkedin.com/*",
+    "https://boards.greenhouse.io/*",
+    "https://jobs.lever.co/*",
+    "https://*.supabase.co/*"
+  ],
+
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/*"],
+      "js": ["lib/supabase-min.js", "config.js", "content/autofill-core.js", "content/linkedin.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": ["https://boards.greenhouse.io/*"],
+      "js": ["lib/supabase-min.js", "config.js", "content/autofill-core.js", "content/greenhouse.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": ["https://jobs.lever.co/*"],
+      "js": ["lib/supabase-min.js", "config.js", "content/autofill-core.js", "content/lever.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+
+  "web_accessible_resources": [
+    {
+      "resources": ["lib/supabase-min.js", "config.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
