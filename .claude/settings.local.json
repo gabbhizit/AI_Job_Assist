@@ -4,7 +4,8 @@
       "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --turbopack)",
       "Read(//Users/gabbhizit/**)",
       "Bash(npx create-next-app@latest ai-job-assist-temp --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --turbopack)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(git rebase:*)"
     ]
   }
 }

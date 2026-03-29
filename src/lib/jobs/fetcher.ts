@@ -122,6 +122,20 @@ export async function fetchAndFilterJobs(
     }
   }
 
+  // ── Build sponsor + E-Verify lookup map ──────────────────────────────────
+  const sponsorMap = new Map<string, { is_h1b_sponsor: boolean; is_everified: boolean }>();
+  const { data: sponsorRows } = await supabase
+    .from("sponsor_friendly_companies")
+    .select("company_name, is_everified");
+  if (sponsorRows) {
+    for (const row of sponsorRows) {
+      sponsorMap.set(row.company_name.toLowerCase(), {
+        is_h1b_sponsor: true,
+        is_everified: row.is_everified ?? false,
+      });
+    }
+  }
+
   // ── Filter and store ──────────────────────────────────────────────────────
   for (const job of allJobs) {
     const filterResult = filterJob(job);
@@ -129,6 +143,21 @@ export async function fetchAndFilterJobs(
       result.filtered++;
       continue;
     }
+
+    // Resolve H1B sponsor + E-Verify flags via company name lookup
+    const companyKey = job.company.toLowerCase().trim();
+    // Try exact match first, then partial match for common variations (e.g. "Google LLC" → "google")
+    let sponsorInfo = sponsorMap.get(companyKey);
+    if (!sponsorInfo) {
+      for (const [key, info] of sponsorMap) {
+        if (companyKey.includes(key) || key.includes(companyKey)) {
+          sponsorInfo = info;
+          break;
+        }
+      }
+    }
+    const is_h1b_sponsor = sponsorInfo?.is_h1b_sponsor ?? false;
+    const is_everified = sponsorInfo?.is_everified ?? false;
 
     // Extract skills from JD
     const skillsExtracted = job.description ? extractSkills(job.description) : [];
@@ -154,6 +183,8 @@ export async function fetchAndFilterJobs(
         expires_at: job.expires_at,
         is_active: true,
         quality_score: filterResult.score,
+        is_h1b_sponsor,
+        is_everified,
         raw_data: job.raw_data,
       },
       {

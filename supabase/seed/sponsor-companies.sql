@@ -101,3 +101,22 @@ INSERT INTO public.sponsor_friendly_companies (company_name, source) VALUES
   ('docker', 'h1b_data_2024'),
   ('red hat', 'h1b_data_2024')
 ON CONFLICT (company_name) DO NOTHING;
+
+-- Mark known E-Verify participants (large tech, finance, defense, and consulting firms
+-- that are required or known to use E-Verify for employment eligibility verification)
+UPDATE sponsor_friendly_companies
+SET is_everified = TRUE
+WHERE company_name IN (
+  'google', 'meta', 'amazon', 'apple', 'microsoft', 'netflix', 'nvidia', 'intel',
+  'salesforce', 'oracle', 'ibm', 'adobe', 'uber', 'lyft', 'airbnb', 'stripe',
+  'databricks', 'snowflake', 'palantir', 'linkedin', 'snap', 'doordash', 'instacart',
+  'datadog', 'splunk', 'vmware', 'cisco', 'qualcomm', 'broadcom', 'samsung',
+  'tiktok', 'bytedance', 'bloomberg', 'jpmorgan', 'goldman sachs', 'morgan stanley',
+  'capital one', 'visa', 'mastercard', 'paypal', 'square', 'block', 'twilio',
+  'cloudflare', 'mongodb', 'elastic', 'confluent', 'palo alto networks', 'crowdstrike',
+  'zscaler', 'okta', 'servicenow', 'workday', 'atlassian', 'zoom', 'shopify',
+  'walmart', 'target', 'deloitte', 'accenture', 'infosys', 'tcs', 'wipro',
+  'cognizant', 'hcl', 'epic systems', 'cerner', 'lockheed martin', 'raytheon',
+  'northrop grumman', 'tesla', 'rivian', 'waymo', 'cruise', 'openai', 'anthropic',
+  'cohere', 'github', 'gitlab', 'red hat'
+);

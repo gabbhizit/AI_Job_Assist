@@ -38,6 +38,9 @@ export interface NormalizedJob {
   posted_at: string | null;
   expires_at: string | null;
   raw_data: Record<string, unknown>;
+  // Populated by fetcher via sponsor_friendly_companies lookup
+  is_h1b_sponsor?: boolean;
+  is_everified?: boolean;
 }
 
 const RAPIDAPI_HOST = "jsearch.p.rapidapi.com";
