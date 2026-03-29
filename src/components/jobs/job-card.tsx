@@ -75,8 +75,8 @@ export function JobCard({
         <div className="flex justify-between items-start gap-4">
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-lg truncate">{title}</h3>
-            <p className="text-muted-foreground">{company}</p>
-            <div className="flex flex-wrap gap-2 mt-2 text-sm text-muted-foreground">
+            <p className="text-foreground/80 font-medium">{company}</p>
+            <div className="flex flex-wrap gap-2 mt-1.5 text-sm text-foreground/60">
               {location && <span>{location}</span>}
               {isRemote && (
                 <Badge variant="secondary" className="text-xs">
@@ -86,12 +86,24 @@ export function JobCard({
               {salary && <span>{salary}</span>}
               {postedAt && <span>{formatDate(postedAt)}</span>}
             </div>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {scoreBreakdown.is_h1b_sponsor && (
+                <Badge className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-0">
+                  ✓ H1B Sponsor
+                </Badge>
+              )}
+              {scoreBreakdown.is_everify && (
+                <Badge className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-0">
+                  ✓ E-Verified
+                </Badge>
+              )}
+            </div>
           </div>
           <div className={`text-2xl font-bold ${scoreColor}`}>{score}</div>
         </div>
 
         {/* Why matched */}
-        <p className="text-sm text-muted-foreground mt-3 italic">
+        <p className="text-sm text-foreground/70 mt-3 leading-relaxed">
           {scoreBreakdown.explanation}
         </p>
 

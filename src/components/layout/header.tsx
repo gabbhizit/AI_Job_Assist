@@ -29,7 +29,7 @@ export function Header() {
       <div className="flex-1" />
       <div className="flex items-center gap-4">
         {email && (
-          <span className="text-sm text-muted-foreground hidden sm:inline">
+          <span className="text-sm text-foreground/70 hidden sm:inline">
             {email}
           </span>
         )}

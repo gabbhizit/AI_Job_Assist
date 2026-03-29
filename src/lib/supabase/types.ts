@@ -306,6 +306,8 @@ export interface ScoreBreakdown {
   sponsor: number;
   total: number;
   explanation: string;
+  is_h1b_sponsor?: boolean;
+  is_everify?: boolean;
 }
 
 export type InteractionAction =

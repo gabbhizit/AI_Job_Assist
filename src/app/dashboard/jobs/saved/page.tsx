@@ -74,10 +74,10 @@ export default function SavedJobsPage() {
                     <h3 className="font-semibold text-lg">
                       {match.jobs.title}
                     </h3>
-                    <p className="text-muted-foreground">
+                    <p className="text-foreground/80 font-medium">
                       {match.jobs.company}
                     </p>
-                    <div className="flex gap-2 mt-1 text-sm text-muted-foreground">
+                    <div className="flex gap-2 mt-1 text-sm text-foreground/60">
                       {match.jobs.location && (
                         <span>{match.jobs.location}</span>
                       )}
@@ -87,7 +87,19 @@ export default function SavedJobsPage() {
                         </Badge>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground mt-2 italic">
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {match.score_breakdown.is_h1b_sponsor && (
+                        <Badge className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-0">
+                          ✓ H1B Sponsor
+                        </Badge>
+                      )}
+                      {match.score_breakdown.is_everify && (
+                        <Badge className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-0">
+                          ✓ E-Verified
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-foreground/70 mt-2 leading-relaxed">
                       {match.score_breakdown.explanation}
                     </p>
                   </div>
