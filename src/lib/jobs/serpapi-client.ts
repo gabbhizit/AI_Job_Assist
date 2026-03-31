@@ -25,6 +25,9 @@ interface SerpAPIJob {
 interface SerpAPIResponse {
   jobs_results?: SerpAPIJob[];
   error?: string;
+  serpapi_pagination?: {
+    next_page_token?: string;
+  };
 }
 
 /**
@@ -119,7 +122,9 @@ export async function fetchSerpAPIJobs(
   }
 
   const allJobs: NormalizedJob[] = [];
+  let nextPageToken: string | undefined;
 
+  // Google Jobs engine uses next_page_token for pagination (NOT numeric start offsets)
   for (let page = 0; page < SERPAPI_PAGES; page++) {
     const params = new URLSearchParams({
       engine: "google_jobs",
@@ -127,16 +132,21 @@ export async function fetchSerpAPIJobs(
       location,
       api_key: apiKey,
       num: "10",
-      start: String(page * 10),
       chips: "date_posted:week", // only jobs from the last week
     });
+
+    // Page 2+ require the token from the previous response
+    if (nextPageToken) {
+      params.set("next_page_token", nextPageToken);
+    }
 
     const response = await fetch(
       `https://serpapi.com/search?${params.toString()}`
     );
 
     if (!response.ok) {
-      throw new Error(`SerpAPI error: ${response.status} ${response.statusText}`);
+      const body = await response.text().catch(() => "");
+      throw new Error(`SerpAPI error: ${response.status} ${response.statusText}${body ? ` — ${body}` : ""}`);
     }
 
     const data: SerpAPIResponse = await response.json();
@@ -148,8 +158,9 @@ export async function fetchSerpAPIJobs(
     const jobs = data.jobs_results || [];
     allJobs.push(...jobs.map((job) => normalizeSerpAPIJob(job)));
 
-    // Stop early if we got fewer results than requested (last page)
-    if (jobs.length < 10) break;
+    // Stop early if no next page token or fewer results than expected (last page)
+    nextPageToken = data.serpapi_pagination?.next_page_token;
+    if (!nextPageToken || jobs.length < 10) break;
 
     if (page < SERPAPI_PAGES - 1) await delay(300);
   }

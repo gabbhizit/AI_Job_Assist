@@ -7,21 +7,49 @@ import { extractSkills } from "./skills-dictionary";
 import { getSearchParams } from "./search-params";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-interface FetchResult {
+interface SourceStats {
+  fetched: number;
+  errors: string[];
+}
+
+export interface FetchResult {
   fetched: number;
   filtered: number;
   stored: number;
   errors: string[];
+  queriesUsed: string[];
+  locationsUsed: string[];
+  sources: {
+    serpapi: SourceStats;
+    adzuna: SourceStats;
+    themuse: SourceStats;
+    jsearch: SourceStats;
+  };
 }
 
 export async function fetchAndFilterJobs(
   supabase: SupabaseClient,
   overrideParams?: { queries: string[]; locations: string[] }
 ): Promise<FetchResult> {
-  const result: FetchResult = { fetched: 0, filtered: 0, stored: 0, errors: [] };
+  const result: FetchResult = {
+    fetched: 0,
+    filtered: 0,
+    stored: 0,
+    errors: [],
+    queriesUsed: [],
+    locationsUsed: [],
+    sources: {
+      serpapi: { fetched: 0, errors: [] },
+      adzuna:  { fetched: 0, errors: [] },
+      themuse: { fetched: 0, errors: [] },
+      jsearch: { fetched: 0, errors: [] },
+    },
+  };
   const allJobs: NormalizedJob[] = [];
 
   const { queries, locations } = overrideParams ?? await getSearchParams(supabase);
+  result.queriesUsed = queries;
+  result.locationsUsed = locations;
 
   // ── Primary: SerpAPI Google Jobs ──────────────────────────────────────────
   if (process.env.SERPAPI_KEY) {
@@ -31,15 +59,17 @@ export async function fetchAndFilterJobs(
           const jobs = await fetchSerpAPIJobs(query, location);
           allJobs.push(...jobs);
           result.fetched += jobs.length;
+          result.sources.serpapi.fetched += jobs.length;
         } catch (error) {
-          result.errors.push(
-            `SerpAPI [${query}][${location}]: ${error instanceof Error ? error.message : "Unknown error"}`
-          );
+          const msg = `[${query}][${location}]: ${error instanceof Error ? error.message : "Unknown error"}`;
+          result.sources.serpapi.errors.push(msg);
+          result.errors.push(`SerpAPI ${msg}`);
         }
         await new Promise((r) => setTimeout(r, 300));
       }
     }
   } else {
+    result.sources.serpapi.errors.push("SERPAPI_KEY not configured");
     result.errors.push("SerpAPI skipped: SERPAPI_KEY not configured");
   }
 
@@ -50,13 +80,16 @@ export async function fetchAndFilterJobs(
         const jobs = await fetchAdzunaJobs(query, "US");
         allJobs.push(...jobs);
         result.fetched += jobs.length;
+        result.sources.adzuna.fetched += jobs.length;
       } catch (error) {
-        result.errors.push(
-          `Adzuna [${query}]: ${error instanceof Error ? error.message : "Unknown error"}`
-        );
+        const msg = `[${query}]: ${error instanceof Error ? error.message : "Unknown error"}`;
+        result.sources.adzuna.errors.push(msg);
+        result.errors.push(`Adzuna ${msg}`);
       }
       await new Promise((r) => setTimeout(r, 200));
     }
+  } else {
+    result.sources.adzuna.errors.push("ADZUNA_APP_ID / ADZUNA_APP_KEY not configured");
   }
 
   // ── Supplemental: The Muse ────────────────────────────────────────────────
@@ -64,10 +97,11 @@ export async function fetchAndFilterJobs(
     const museJobs = await fetchTheMuseJobs();
     allJobs.push(...museJobs);
     result.fetched += museJobs.length;
+    result.sources.themuse.fetched += museJobs.length;
   } catch (error) {
-    result.errors.push(
-      `The Muse: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    result.sources.themuse.errors.push(msg);
+    result.errors.push(`The Muse: ${msg}`);
   }
 
   // ── Fallback: JSearch (if RAPIDAPI_KEY is set) ────────────────────────────
@@ -78,14 +112,17 @@ export async function fetchAndFilterJobs(
           const jobs = await fetchJSearchJobs(query, location);
           allJobs.push(...jobs);
           result.fetched += jobs.length;
+          result.sources.jsearch.fetched += jobs.length;
         } catch (error) {
-          result.errors.push(
-            `JSearch [${query}][${location}]: ${error instanceof Error ? error.message : "Unknown error"}`
-          );
+          const msg = `[${query}][${location}]: ${error instanceof Error ? error.message : "Unknown error"}`;
+          result.sources.jsearch.errors.push(msg);
+          result.errors.push(`JSearch ${msg}`);
         }
         await new Promise((r) => setTimeout(r, 200));
       }
     }
+  } else {
+    result.sources.jsearch.errors.push("RAPIDAPI_KEY not configured (JSearch disabled)");
   }
 
   // ── Build sponsor + E-Verify lookup map ──────────────────────────────────

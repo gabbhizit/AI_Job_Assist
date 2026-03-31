@@ -76,15 +76,18 @@ async function callClaude(prompt: string): Promise<{ roles: string[]; locations:
 /**
  * Generate (or update) the search params cache using Claude.
  *
- * Bootstrap mode: no cache row exists → query all primary resumes → Claude generates full list.
- * Incremental mode: cache row exists → send new resume + existing list → Claude merges + dedupes.
+ * Bootstrap mode (newParsedResume omitted OR no cache row):
+ *   → queries all primary resumes from DB → Claude generates full list.
+ * Incremental mode (cache row exists AND newParsedResume provided):
+ *   → sends new resume + existing list → Claude merges + dedupes.
  *
- * Returns the net-new roles added to the cache (for targeted delta fetch).
+ * Returns { addedRoles, allRoles, allLocations }.
+ * addedRoles = net-new roles vs old cache (all roles on bootstrap).
  */
 export async function generateSearchParamsCache(
   supabase: SupabaseClient,
-  newParsedResume: ParsedResume
-): Promise<{ addedRoles: string[]; allLocations: string[] }> {
+  newParsedResume?: ParsedResume
+): Promise<{ addedRoles: string[]; allRoles: string[]; allLocations: string[] }> {
   // Read existing cache
   const { data: cacheRow } = await supabase
     .from("search_params_cache")
@@ -93,9 +96,10 @@ export async function generateSearchParamsCache(
     .single();
 
   let result: { roles: string[]; locations: string[] };
+  const existingRoles: string[] = cacheRow?.roles ?? [];
 
-  if (!cacheRow) {
-    // ── Bootstrap: no cache yet — gather all primary resumes ──────────────
+  if (!cacheRow || !newParsedResume) {
+    // ── Bootstrap: no cache yet, or called without a new resume ──────────
     const { data: resumes } = await supabase
       .from("resumes")
       .select("parsed_data")
@@ -107,8 +111,13 @@ export async function generateSearchParamsCache(
       .filter((d): d is ParsedResume => !!d)
       .map(buildCompactSummary);
 
-    // Include the newly uploaded resume even if not yet in DB as primary+completed
-    summaries.push(buildCompactSummary(newParsedResume));
+    // Include the newly uploaded resume even if not yet committed to DB
+    if (newParsedResume) summaries.push(buildCompactSummary(newParsedResume));
+
+    if (summaries.length === 0) {
+      console.log("[search-params] no resumes found — skipping cache generation");
+      return { addedRoles: [], allRoles: [], allLocations: [] };
+    }
 
     const prompt = `You are helping a job search platform. Given these user resume summaries, generate a comprehensive, deduplicated list of job search queries and US city locations to use when fetching job listings from APIs like Google Jobs.
 
@@ -124,13 +133,26 @@ Rules:
 Return ONLY valid JSON with no explanation: { "roles": string[], "locations": string[] }`;
 
     result = await callClaude(prompt);
-  } else {
-    // ── Incremental: cache exists — merge new resume into existing list ────
-    const existingRoles: string[] = cacheRow.roles ?? [];
-    const existingLocations: string[] = cacheRow.locations ?? [];
-    const newSummary = buildCompactSummary(newParsedResume);
 
-    const prompt = `You are helping a job search platform. Here is an existing list of job search parameters and a new user's resume summary. Merge them into an updated, deduplicated, normalized list.
+    await supabase.from("search_params_cache").upsert({
+      id: 1,
+      roles: result.roles,
+      locations: result.locations,
+      generated_at: new Date().toISOString(),
+    });
+
+    console.log(
+      `[search-params] cache bootstrapped — ${result.roles.length} roles, ${result.locations.length} locations`
+    );
+
+    return { addedRoles: result.roles, allRoles: result.roles, allLocations: result.locations };
+  }
+
+  // ── Incremental: cache exists + new resume provided ─────────────────────
+  const existingLocations: string[] = cacheRow.locations ?? [];
+  const newSummary = buildCompactSummary(newParsedResume);
+
+  const prompt = `You are helping a job search platform. Here is an existing list of job search parameters and a new user's resume summary. Merge them into an updated, deduplicated, normalized list.
 
 Existing search params:
 ${JSON.stringify({ roles: existingRoles, locations: existingLocations }, null, 2)}
@@ -146,28 +168,11 @@ Rules:
 
 Return ONLY valid JSON with no explanation: { "roles": string[], "locations": string[] }`;
 
-    result = await callClaude(prompt);
+  result = await callClaude(prompt);
 
-    // Compute diff: which roles are net-new vs old cache
-    const oldRolesSet = new Set(existingRoles.map((r) => r.toLowerCase()));
-    const addedRoles = result.roles.filter((r) => !oldRolesSet.has(r.toLowerCase()));
+  const oldRolesSet = new Set(existingRoles.map((r) => r.toLowerCase()));
+  const addedRoles = result.roles.filter((r) => !oldRolesSet.has(r.toLowerCase()));
 
-    // Upsert updated cache
-    await supabase.from("search_params_cache").upsert({
-      id: 1,
-      roles: result.roles,
-      locations: result.locations,
-      generated_at: new Date().toISOString(),
-    });
-
-    console.log(
-      `[search-params] cache updated — ${result.roles.length} roles, ${result.locations.length} locations, ${addedRoles.length} new roles added`
-    );
-
-    return { addedRoles, allLocations: result.locations };
-  }
-
-  // Bootstrap: upsert, all roles are "added" (first time)
   await supabase.from("search_params_cache").upsert({
     id: 1,
     roles: result.roles,
@@ -176,20 +181,36 @@ Return ONLY valid JSON with no explanation: { "roles": string[], "locations": st
   });
 
   console.log(
-    `[search-params] cache bootstrapped — ${result.roles.length} roles, ${result.locations.length} locations`
+    `[search-params] cache updated — ${result.roles.length} roles, ${result.locations.length} locations, ${addedRoles.length} new roles added`
   );
 
-  return { addedRoles: result.roles, allLocations: result.locations };
+  return { addedRoles, allRoles: result.roles, allLocations: result.locations };
+}
+
+/** Deduplicate a string array case-insensitively, preserving first-seen casing. */
+function dedupeInsensitive(arr: string[]): string[] {
+  const seen = new Set<string>();
+  return arr.filter((item) => {
+    const key = item.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /**
- * Read the cached search params for use in the daily pipeline.
- * Falls back to hardcoded defaults if cache is empty or missing.
- * Applies env-based caps (dev: small, prod: full).
+ * Read the cached search params and MERGE with hardcoded defaults.
+ *
+ * Cache-derived entries come first (user-specific), defaults fill the rest.
+ * If cache is empty → auto-bootstraps from existing DB resumes via Claude first.
+ * Applies env-based caps after merging (dev: small, prod: full).
  */
 export async function getSearchParams(
   supabase: SupabaseClient
 ): Promise<{ queries: string[]; locations: string[] }> {
+  let cachedRoles: string[] = [];
+  let cachedLocations: string[] = [];
+
   try {
     const { data } = await supabase
       .from("search_params_cache")
@@ -198,16 +219,23 @@ export async function getSearchParams(
       .single();
 
     if (data && (data.roles as string[]).length > 0) {
-      const queries = (data.roles as string[]).slice(0, MAX_QUERIES);
-      const locations = (data.locations as string[]).slice(0, MAX_LOCATIONS);
-      return { queries, locations };
+      cachedRoles     = data.roles as string[];
+      cachedLocations = data.locations as string[];
+    } else {
+      // Cache empty — auto-bootstrap from existing resumes
+      console.log("[search-params] cache empty — bootstrapping from existing resumes...");
+      const { allRoles, allLocations } = await generateSearchParamsCache(supabase);
+      cachedRoles     = allRoles;
+      cachedLocations = allLocations;
     }
-  } catch {
-    // Fall through to defaults
+  } catch (err) {
+    console.error("[search-params] getSearchParams error:", err);
   }
 
-  return {
-    queries: DEFAULT_QUERIES.slice(0, MAX_QUERIES),
-    locations: DEFAULT_LOCATIONS.slice(0, MAX_LOCATIONS),
-  };
+  // Merge: cache-derived first, then hardcoded defaults to fill gaps — deduplicated
+  const queries   = dedupeInsensitive([...cachedRoles,     ...DEFAULT_QUERIES]).slice(0, MAX_QUERIES);
+  const locations = dedupeInsensitive([...cachedLocations, ...DEFAULT_LOCATIONS]).slice(0, MAX_LOCATIONS);
+
+  console.log(`[search-params] using ${queries.length} queries, ${locations.length} locations (${cachedRoles.length} from cache + defaults)`);
+  return { queries, locations };
 }
