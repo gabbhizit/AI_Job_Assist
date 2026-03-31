@@ -105,6 +105,10 @@ function inferExperience(title: string, description: string): string | null {
   return null;
 }
 
+const SERPAPI_PAGES = process.env.NODE_ENV === "production" ? 3 : 2;
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function fetchSerpAPIJobs(
   query: string,
   location: string
@@ -114,31 +118,43 @@ export async function fetchSerpAPIJobs(
     throw new Error("SERPAPI_KEY is not configured");
   }
 
-  const params = new URLSearchParams({
-    engine: "google_jobs",
-    q: query,
-    location,
-    api_key: apiKey,
-    num: "10",
-    chips: "date_posted:week", // only jobs from the last week
-  });
+  const allJobs: NormalizedJob[] = [];
 
-  const response = await fetch(
-    `https://serpapi.com/search?${params.toString()}`
-  );
+  for (let page = 0; page < SERPAPI_PAGES; page++) {
+    const params = new URLSearchParams({
+      engine: "google_jobs",
+      q: query,
+      location,
+      api_key: apiKey,
+      num: "10",
+      start: String(page * 10),
+      chips: "date_posted:week", // only jobs from the last week
+    });
 
-  if (!response.ok) {
-    throw new Error(`SerpAPI error: ${response.status} ${response.statusText}`);
+    const response = await fetch(
+      `https://serpapi.com/search?${params.toString()}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`SerpAPI error: ${response.status} ${response.statusText}`);
+    }
+
+    const data: SerpAPIResponse = await response.json();
+
+    if (data.error) {
+      throw new Error(`SerpAPI error: ${data.error}`);
+    }
+
+    const jobs = data.jobs_results || [];
+    allJobs.push(...jobs.map((job) => normalizeSerpAPIJob(job)));
+
+    // Stop early if we got fewer results than requested (last page)
+    if (jobs.length < 10) break;
+
+    if (page < SERPAPI_PAGES - 1) await delay(300);
   }
 
-  const data: SerpAPIResponse = await response.json();
-
-  if (data.error) {
-    throw new Error(`SerpAPI error: ${data.error}`);
-  }
-
-  const jobs = data.jobs_results || [];
-  return jobs.map((job) => normalizeSerpAPIJob(job));
+  return allJobs;
 }
 
 function normalizeSerpAPIJob(job: SerpAPIJob): NormalizedJob {
