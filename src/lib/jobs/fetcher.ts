@@ -4,40 +4,8 @@ import { fetchSerpAPIJobs } from "./serpapi-client";
 import { fetchTheMuseJobs } from "./themuse-client";
 import { filterJob } from "./job-filter";
 import { extractSkills } from "./skills-dictionary";
+import { getSearchParams } from "./search-params";
 import type { SupabaseClient } from "@supabase/supabase-js";
-
-// SerpAPI: primary source — Google Jobs aggregates 1000+ boards (Indeed, LinkedIn, etc.)
-// Dev: 3 queries × 1 location = 3 SerpAPI calls
-// Prod: 8 queries × 4 locations = 32 SerpAPI calls
-const SERP_QUERIES =
-  process.env.NODE_ENV === "production"
-    ? [
-        "software engineer",
-        "backend developer",
-        "frontend developer",
-        "data engineer",
-        "ML engineer",
-        "devops engineer",
-        "software developer",
-        "new grad software engineer",
-      ]
-    : ["software engineer", "new grad software engineer", "ML engineer"];
-
-const SERP_LOCATIONS =
-  process.env.NODE_ENV === "production"
-    ? ["United States", "San Francisco, CA", "New York, NY", "Seattle, WA"]
-    : ["United States"];
-
-// JSearch: fallback source — only runs if RAPIDAPI_KEY is set
-const JSEARCH_QUERIES =
-  process.env.NODE_ENV === "production"
-    ? ["software engineer", "backend developer", "data engineer", "new grad software"]
-    : ["software engineer"];
-
-const JSEARCH_LOCATIONS =
-  process.env.NODE_ENV === "production"
-    ? ["United States", "San Francisco, CA"]
-    : ["United States"];
 
 interface FetchResult {
   fetched: number;
@@ -47,15 +15,18 @@ interface FetchResult {
 }
 
 export async function fetchAndFilterJobs(
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  overrideParams?: { queries: string[]; locations: string[] }
 ): Promise<FetchResult> {
   const result: FetchResult = { fetched: 0, filtered: 0, stored: 0, errors: [] };
   const allJobs: NormalizedJob[] = [];
 
+  const { queries, locations } = overrideParams ?? await getSearchParams(supabase);
+
   // ── Primary: SerpAPI Google Jobs ──────────────────────────────────────────
   if (process.env.SERPAPI_KEY) {
-    for (const query of SERP_QUERIES) {
-      for (const location of SERP_LOCATIONS) {
+    for (const query of queries) {
+      for (const location of locations) {
         try {
           const jobs = await fetchSerpAPIJobs(query, location);
           allJobs.push(...jobs);
@@ -74,12 +45,7 @@ export async function fetchAndFilterJobs(
 
   // ── Secondary: Adzuna ─────────────────────────────────────────────────────
   if (process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY) {
-    const adzunaQueries =
-      process.env.NODE_ENV === "production"
-        ? SERP_QUERIES
-        : ["software engineer", "data engineer"];
-
-    for (const query of adzunaQueries) {
+    for (const query of queries) {
       try {
         const jobs = await fetchAdzunaJobs(query, "US");
         allJobs.push(...jobs);
@@ -106,8 +72,8 @@ export async function fetchAndFilterJobs(
 
   // ── Fallback: JSearch (if RAPIDAPI_KEY is set) ────────────────────────────
   if (process.env.RAPIDAPI_KEY) {
-    for (const query of JSEARCH_QUERIES) {
-      for (const location of JSEARCH_LOCATIONS) {
+    for (const query of queries) {
+      for (const location of locations) {
         try {
           const jobs = await fetchJSearchJobs(query, location);
           allJobs.push(...jobs);

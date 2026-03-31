@@ -1,7 +1,10 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { getAIProvider } from "@/lib/ai/ai-provider";
 import { validateParsedResume } from "@/lib/ai/resume-validator";
 import { extractTextFromPDF } from "@/lib/utils/pdf-parser";
+import { generateSearchParamsCache } from "@/lib/jobs/search-params";
+import { runDeltaFetchAndMatch } from "@/lib/jobs/delta-pipeline";
+import type { ParsedResume } from "@/lib/supabase/types";
 import { NextResponse } from "next/server";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -173,6 +176,26 @@ export async function POST(request: Request) {
         parsing_error: null,
       })
       .eq("id", resume.id);
+
+    // 9. Fire-and-forget: update search params cache + run targeted fetch+match for this user
+    //    Using service role client so it has access to all resumes (not just this user's)
+    createServiceRoleClient().then((serviceClient) => {
+      (async () => {
+        const { addedRoles, allLocations } = await generateSearchParamsCache(
+          serviceClient,
+          parsedData as ParsedResume
+        );
+        await runDeltaFetchAndMatch(
+          serviceClient,
+          user.id,
+          addedRoles,
+          allLocations,
+          parsedData as ParsedResume
+        );
+      })().catch((err) =>
+        console.error("[search-params] post-upload pipeline failed:", err)
+      );
+    });
 
     return NextResponse.json({
       resumeId: resume.id,
