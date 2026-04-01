@@ -15,7 +15,7 @@ A SaaS MVP for MS CS students on F1/OPT visas in the US. Core value: daily perso
 |----------|-----|
 | Next.js App Router | Latest, Vercel-native, server components |
 | Supabase | Auth + DB + Storage in one, generous free tier |
-| Claude Haiku 4.5 | Cheapest capable model for resume parsing (~$0.001/resume) |
+| Claude Haiku (`claude-haiku-4-5-20251001`) | Resume parsing (~$0.001/resume) + search param generation from resumes |
 | Vercel Cron | No extra infra — daily job pipeline runs as a cron job hitting `/api/cron/daily-pipeline` |
 | Rule-based matching (not LLM) | Zero cost, fast, explainable scores, good enough for MVP |
 | shadcn/ui + Tailwind v4 | Uses `@base-ui/react` — NOT Radix, so `asChild` prop doesn't exist on Button |
@@ -29,20 +29,59 @@ A SaaS MVP for MS CS students on F1/OPT visas in the US. Core value: daily perso
 ### Job Pipeline (daily cron at 6AM UTC)
 ```
 /api/cron/daily-pipeline (protected by CRON_SECRET bearer token)
-  Step 1: fetchAndFilterJobs() → fetches from SerpAPI + Adzuna + The Muse (+ JSearch if configured)
+  Step 1: fetchAndFilterJobs()
+            → reads dynamic queries/locations from search_params_cache (Claude-generated),
+              merged with hardcoded defaults (cache-first, deduped)
+            → fetches from SerpAPI + Adzuna + The Muse (+ JSearch if configured)
+            → returns FetchResult { fetched, filtered, stored, errors,
+                queriesUsed, locationsUsed, sources{serpapi,adzuna,themuse,jsearch} }
   Step 2: matchJobsForUser() → scores every active job against each user's resume
   Step 3: email notifications (TODO — Resend not wired yet)
   Step 4: cleanupStaleJobs() (Sundays only)
 ```
 
+### Search Params Cache
+Job search queries and locations are Claude-generated from user resumes, not hardcoded.
+
+```
+search_params_cache table (single row, id=1): roles text[], locations text[], generated_at
+
+getSearchParams(supabase):
+  1. Read search_params_cache row
+  2. If empty → auto-bootstrap: query all primary resumes → Claude Haiku generates list
+  3. Merge cache roles/locations with DEFAULT_QUERIES/DEFAULT_LOCATIONS (cache-first, deduped)
+  4. Apply env cap: dev = 3 queries × 1 location, prod = 15 queries × 8 locations
+  5. Return { queries, locations }
+
+generateSearchParamsCache(supabase, newParsedResume?):
+  Bootstrap mode (no cache or no resume arg):
+    → query all is_primary+completed resumes → build compact summaries → Claude generates list
+  Incremental mode (cache exists + new resume provided):
+    → Claude merges new resume into existing list, dedupes, normalizes
+    → compute diff: addedRoles = new roles not in old cache
+    → upsert cache, return { addedRoles, allRoles, allLocations }
+```
+
+### Resume Upload → Immediate Pipeline Trigger
+After resume is parsed and stored as `parsing_status: "completed"`, upload route fires a background job (fire-and-forget, does not block response):
+```
+createServiceRoleClient()
+  → generateSearchParamsCache(serviceClient, parsedResume)   ← update cache
+  → runDeltaFetchAndMatch(serviceClient, userId, addedRoles, allLocations, parsedResume)
+      if addedRoles.length > 0:
+        fetchAndFilterJobs(supabase, { queries: addedRoles, locations: allLocations })
+      always:
+        matchJobsForUser(userId, parsedResume, prefs, supabase)  ← immediate matches
+```
+This gives users job matches right after upload without waiting for the next daily cron.
+
 ### Job Sources (priority order)
 1. **SerpAPI Google Jobs** — primary, aggregates 1000+ boards. Needs `SERPAPI_KEY`. Free: 100 searches/month, paid: $50/month for 5K.
+   - Pagination via `next_page_token` (NOT numeric `start=` offset — causes 400 on google_jobs engine)
+   - Dev: 2 pages/query, Prod: 3 pages/query
 2. **Adzuna** — free secondary. Needs `ADZUNA_APP_ID` + `ADZUNA_APP_KEY`.
 3. **The Muse** — free supplemental, tech-curated. No key needed. Optional `THE_MUSE_API_KEY` for higher limits.
 4. **JSearch (RapidAPI)** — optional fallback, only runs if `RAPIDAPI_KEY` is set. Deprioritized due to data quality.
-
-Dev mode: 3 SerpAPI queries × 1 location = 3 API calls
-Prod mode: 8 SerpAPI queries × 4 locations = 32 API calls
 
 ### Matching Score (0–100, minimum 40 to show)
 | Component | Points |
@@ -60,11 +99,20 @@ Prod mode: 8 SerpAPI queries × 4 locations = 32 API calls
 ```
 PDF upload → pdf-parse text extraction → Claude Haiku AI parse → rule-based validation
 → confidence: high/medium/low + flags → user can edit parsed data in UI
+→ (background) generateSearchParamsCache + runDeltaFetchAndMatch
 ```
 
 ### Interaction Tracking (dual system, no conflict)
 - `job_matches.user_status` — current state for UI (saved/dismissed/applied/null). Updated in place.
 - `user_interactions` — append-only event log for analytics. Never used for UI state.
+
+### Dev Test Pipeline
+`GET /api/test/pipeline` — dev-only (returns 404 in prod). Requires auth (must be logged in).
+Returns structured `steps[]` via `createPipelineLog()` with timing per step:
+- `search_params` — shows cache state (roles/locations or "fallback_defaults")
+- `fetch` — per-source breakdown (fetched/errors for serpapi/adzuna/themuse/jsearch) + queriesUsed/locationsUsed
+- `match` — matches created for current user
+- `top_matches` — top 5 scored jobs with explanation
 
 ---
 
@@ -87,11 +135,12 @@ src/
       profile/route.ts                — GET/PUT user profile
       preferences/route.ts            — GET/PUT preferences
       resume/route.ts                 — GET/PUT parsed resume
-      resume/upload/route.ts          — 3-stage PDF parsing pipeline
+      resume/upload/route.ts          — 3-stage PDF parsing + fires delta pipeline
       jobs/route.ts                   — GET top 15 matches
       jobs/saved/route.ts             — GET saved jobs
       jobs/[id]/action/route.ts       — POST save/dismiss/apply/click
       cron/daily-pipeline/route.ts    — daily fetch + match + notify + cleanup
+      test/pipeline/route.ts          — DEV ONLY: structured pipeline test (createPipelineLog)
   components/
     layout/sidebar.tsx, header.tsx
     jobs/job-card.tsx
@@ -110,22 +159,31 @@ src/
       prompts/resume-parse.ts         — detailed Claude prompt for structured resume extraction
     jobs/
       fetcher.ts                      — orchestrates all job sources + DB upsert
+                                        accepts optional overrideParams{queries,locations}
+                                        returns FetchResult with per-source breakdown
       serpapi-client.ts               — SerpAPI Google Jobs → NormalizedJob
+                                        pagination via next_page_token (NOT start= offset)
       adzuna-client.ts                — Adzuna → NormalizedJob
       themuse-client.ts               — The Muse → NormalizedJob
       jsearch-client.ts               — JSearch (fallback) + NormalizedJob interface definition
       job-filter.ts                   — hard reject + quality scoring (threshold: 30)
       skills-dictionary.ts            — ~150 canonical skills + aliases, word-boundary regex
+      search-params.ts                — Claude-generated search param cache (bootstrap + incremental)
+                                        getSearchParams(), generateSearchParamsCache()
+      delta-pipeline.ts               — targeted fetch + match triggered on resume upload
+                                        runDeltaFetchAndMatch()
     matching/
       scorer.ts                       — full scoring algorithm + matchJobsForUser()
     utils/
       pdf-parser.ts                   — thin pdf-parse wrapper
-      pipeline-logger.ts              — structured step logger for cron
+      pipeline-logger.ts              — structured step logger (createPipelineLog)
   middleware.ts                       — Next.js route protection (redirects)
   types/
     pdf-parse.d.ts                    — type declaration for pdf-parse package
 supabase/
   migrations/001_initial_schema.sql   — full DB schema with RLS, indexes, triggers
+  migrations/002_job_filter_fields.sql — adds is_h1b_sponsor + is_everified to jobs
+  migrations/003_search_params_cache.sql — search_params_cache table (single-row, no RLS)
   seed/sponsor-companies.sql          — ~100 known H1B sponsor companies
 chrome-extension/                     — Chrome MV3 extension (plain JS, no build step)
   manifest.json                       — MV3 config: permissions, content_scripts, host_permissions
@@ -145,13 +203,14 @@ chrome-extension/                     — Chrome MV3 extension (plain JS, no bui
 - `profiles` — user info, visa status, plan (trial/paid)
 - `user_preferences` — target roles, locations, salary, experience, remote, notifications
 - `resumes` — PDF file path, parsed JSONB, parsing status/confidence, is_user_verified
-- `jobs` — normalized job data, skills_extracted TEXT[], quality_score
+- `jobs` — normalized job data, skills_extracted TEXT[], quality_score, is_h1b_sponsor, is_everified
 - `job_matches` — per-user scored matches with score_breakdown JSONB, user_status, explanation
 - `user_interactions` — append-only event log (save/unsave/dismiss/apply/click)
-- `sponsor_friendly_companies` — ~100 known H1B sponsors (seeded)
+- `sponsor_friendly_companies` — ~100 known H1B sponsors (seeded), is_everified flag
 - `pipeline_logs` — cron run history
+- `search_params_cache` — single row (id=1, enforced by CHECK constraint): roles text[], locations text[], generated_at. No RLS. Updated on resume upload, read by pipeline.
 
-All tables have RLS enabled. Storage bucket `resumes` has user-scoped RLS.
+All tables except `search_params_cache` have RLS enabled. Storage bucket `resumes` has user-scoped RLS.
 
 ---
 
@@ -167,6 +226,9 @@ All tables have RLS enabled. Storage bucket `resumes` has user-scoped RLS.
 
 ### Button `asChild` Not Supported
 shadcn Button uses `@base-ui/react/button`, not Radix. The `asChild` prop doesn't exist. Use styled `<span>` inside `<label>` for file input triggers.
+
+### SerpAPI Pagination
+`engine=google_jobs` does NOT support numeric `start=` offset pagination (causes 400). Use `next_page_token` from `serpapi_pagination` in the response. Implemented in `serpapi-client.ts`.
 
 ---
 
@@ -209,6 +271,11 @@ npm run dev          # start dev server on port 3000
 npm run build        # verify TypeScript compiles (run before pushing)
 ```
 
+**Apply DB migrations (run in order in Supabase SQL Editor if not applied):**
+1. `supabase/migrations/001_initial_schema.sql`
+2. `supabase/migrations/002_job_filter_fields.sql`
+3. `supabase/migrations/003_search_params_cache.sql`
+
 **Load the Chrome Extension:**
 1. Open `chrome://extensions`, enable Developer mode
 2. Click "Load unpacked" → select `chrome-extension/` folder
@@ -222,6 +289,12 @@ curl -X GET "http://localhost:3000/api/cron/daily-pipeline" \
   -H "Authorization: Bearer $(grep CRON_SECRET .env.local | cut -d '=' -f2)"
 ```
 
+**Test pipeline (dev only — must be logged in):**
+```
+GET http://localhost:3000/api/test/pipeline
+```
+Returns structured steps[] with timing, per-source fetch breakdown, search_params cache state, and top 5 matched jobs.
+
 **Check DB:**
 ```bash
 SUPABASE_ACCESS_TOKEN=<token> npx supabase db query --linked "SELECT COUNT(*) FROM jobs"
@@ -229,29 +302,35 @@ SUPABASE_ACCESS_TOKEN=<token> npx supabase db query --linked "SELECT COUNT(*) FR
 
 ---
 
-## Current State (as of March 2026)
+## Current State (as of April 2026)
 
 ### ✅ Built & Working
 - Google OAuth login (Supabase)
-- Dashboard with job matches display
+- Dashboard with job matches display + FilterBar (role, date, type, level, H1B, E-Verified filters)
 - Resume upload → Claude parse → editable review UI
 - Preferences form
 - Saved jobs page
 - Job matching engine (rule-based scoring)
 - Daily cron pipeline structure
 - SerpAPI + Adzuna + The Muse + JSearch (fallback) job sources
+- SerpAPI token-based pagination (next_page_token, 2 pages dev / 3 pages prod)
+- Dynamic search params from user resumes — Claude-generated cache, auto-bootstrapped, incremental updates on upload
+- Delta fetch + match on resume upload — immediate job matches without waiting for cron
+- Structured pipeline logging — per-source breakdown, queries/locations used, timing per step
+- H1B Sponsor (blue badge) + E-Verified (emerald badge) on job cards
 - sponsor_friendly_companies seed table
-- Full DB schema with RLS
+- Full DB schema with RLS + 3 migrations applied
 - Chrome Extension (MV3) — autofill for LinkedIn Easy Apply, Greenhouse, Lever
+- Dev test pipeline endpoint (`/api/test/pipeline`)
 
-### 🚧 Remaining (Weeks 3–4)
+### 🚧 Remaining
 - [ ] Resend email integration — daily digest + pipeline failure alerts
 - [ ] Trial/paid plan logic (1-week free trial gate)
 - [ ] Stripe Checkout — subscription billing
-- [ ] Landing page at `/`
+- [ ] Landing page at `/` — currently minimal placeholder
 - [ ] Mobile responsiveness polish
 - [ ] Production deployment to Vercel
-- [ ] End-to-end cron testing with real data
+- [ ] End-to-end cron testing with real SerpAPI data
 
 ### 🔮 Future / Deferred
 - Resume tailoring (premium feature using Claude Sonnet)
@@ -259,4 +338,5 @@ SUPABASE_ACCESS_TOKEN=<token> npx supabase db query --linked "SELECT COUNT(*) FR
 - LinkedIn profile import
 - Feedback-based match weight adjustment
 - OCR for image-based PDFs
-- Chrome Extension Phase 2: Workday support (cross-origin iframes, ARIA textbox roles), multi-entry education/work history, autofill analytics, Chrome Web Store publish
+- B2B Consultancy feature — `consultancy_id` column already in `profiles` as prep
+- Chrome Extension Phase 2: Workday support, Chrome Web Store publish
