@@ -16,6 +16,14 @@ function LoginContent() {
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/api/auth/callback`,
+        // Request Gmail readonly scope upfront so job emails work immediately.
+        // If the user declines, they can reconnect later from the Emails page.
+        scopes:
+          "openid email profile https://www.googleapis.com/auth/gmail.readonly",
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
       },
     });
   };
