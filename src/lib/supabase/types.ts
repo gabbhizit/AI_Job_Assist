@@ -25,6 +25,11 @@ export interface Database {
           jobs_viewed_reset_at: string;
           created_at: string;
           updated_at: string;
+          google_access_token: string | null;
+          google_refresh_token: string | null;
+          google_token_expires_at: string | null;
+          gmail_connected_at: string | null;
+          gmail_sync_cursor: string | null;
         };
         Insert: {
           id: string;
@@ -37,8 +42,49 @@ export interface Database {
           jobs_viewed_reset_at?: string;
           created_at?: string;
           updated_at?: string;
+          google_access_token?: string | null;
+          google_refresh_token?: string | null;
+          google_token_expires_at?: string | null;
+          gmail_connected_at?: string | null;
+          gmail_sync_cursor?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
+        Relationships: [];
+      };
+      email_events: {
+        Row: {
+          id: string;
+          user_id: string;
+          gmail_message_id: string;
+          gmail_thread_id: string;
+          subject: string | null;
+          sender_email: string | null;
+          sender_name: string | null;
+          snippet: string | null;
+          received_at: string | null;
+          category: EmailCategory;
+          job_match_id: string | null;
+          company_name: string | null;
+          is_read: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          gmail_message_id: string;
+          gmail_thread_id: string;
+          subject?: string | null;
+          sender_email?: string | null;
+          sender_name?: string | null;
+          snippet?: string | null;
+          received_at?: string | null;
+          category?: EmailCategory;
+          job_match_id?: string | null;
+          company_name?: string | null;
+          is_read?: boolean;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["email_events"]["Insert"]>;
         Relationships: [];
       };
       user_preferences: {
@@ -318,3 +364,11 @@ export type InteractionAction =
   | "undismiss"
   | "apply"
   | "click_apply_link";
+
+export type EmailCategory =
+  | "application_confirmation"
+  | "interview_invite"
+  | "offer"
+  | "rejection"
+  | "recruiter_outreach"
+  | "unknown";
