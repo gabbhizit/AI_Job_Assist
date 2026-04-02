@@ -23,6 +23,7 @@ export interface Database {
           trial_started_at: string;
           jobs_viewed_today: number;
           jobs_viewed_reset_at: string;
+          opt_end_date: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -35,6 +36,7 @@ export interface Database {
           trial_started_at?: string;
           jobs_viewed_today?: number;
           jobs_viewed_reset_at?: string;
+          opt_end_date?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -317,4 +319,8 @@ export type InteractionAction =
   | "dismiss"
   | "undismiss"
   | "apply"
-  | "click_apply_link";
+  | "click_apply_link"
+  | "move_to_phone_screen"
+  | "move_to_interview"
+  | "move_to_offer"
+  | "move_to_rejected";
