@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Message {
   role: "user" | "assistant";
@@ -130,7 +132,7 @@ export function CoachChat() {
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
-              className="rounded-[10px] px-4 py-2.5 max-w-[80%] whitespace-pre-wrap"
+              className="rounded-[10px] px-4 py-2.5 max-w-[80%]"
               style={{
                 fontSize: "13px",
                 lineHeight: 1.6,
@@ -138,7 +140,29 @@ export function CoachChat() {
                 color: msg.role === "user" ? "white" : "#333333",
               }}
             >
-              {msg.content}
+              {msg.role === "user" ? (
+                <span className="whitespace-pre-wrap">{msg.content}</span>
+              ) : (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    p: ({ children }) => <p style={{ marginBottom: "8px", lineHeight: 1.6 }}>{children}</p>,
+                    ul: ({ children }) => <ul style={{ paddingLeft: "16px", marginBottom: "8px", listStyleType: "disc" }}>{children}</ul>,
+                    ol: ({ children }) => <ol style={{ paddingLeft: "16px", marginBottom: "8px", listStyleType: "decimal" }}>{children}</ol>,
+                    li: ({ children }) => <li style={{ marginBottom: "3px" }}>{children}</li>,
+                    strong: ({ children }) => <strong style={{ fontWeight: 600, color: "#111111" }}>{children}</strong>,
+                    code: ({ children }) => (
+                      <code style={{ background: "#e8e8e8", padding: "1px 5px", borderRadius: "3px", fontSize: "12px" }}>
+                        {children}
+                      </code>
+                    ),
+                    h3: ({ children }) => <p style={{ fontWeight: 600, color: "#111111", marginBottom: "6px", marginTop: "10px" }}>{children}</p>,
+                    h4: ({ children }) => <p style={{ fontWeight: 600, color: "#333333", marginBottom: "4px", marginTop: "8px" }}>{children}</p>,
+                  }}
+                >
+                  {msg.content}
+                </ReactMarkdown>
+              )}
               {msg.streaming && msg.content === "" && (
                 <span className="inline-flex gap-1 items-center">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#aaaaaa] animate-bounce" style={{ animationDelay: "0ms" }} />

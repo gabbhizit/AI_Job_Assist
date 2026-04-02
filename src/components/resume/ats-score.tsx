@@ -9,7 +9,7 @@ interface AtsCriteria {
   tip: string;
 }
 
-function computeAts(resume: ParsedResume): { score: number; criteria: AtsCriteria[] } {
+export function computeAts(resume: ParsedResume): { score: number; criteria: AtsCriteria[] } {
   const criteria: AtsCriteria[] = [
     {
       label: "Contact info",
