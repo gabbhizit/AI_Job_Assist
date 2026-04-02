@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  LayoutDashboard, Briefcase, FileText, FileStack, Bot,
+  LayoutDashboard, Briefcase, FileText, FileStack, Bot, Mail,
   Settings, Zap, User, Flame,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -34,11 +34,12 @@ function ScoreRing({ score }: { score: number }) {
 
 // ── Nav items ─────────────────────────────────────────────────────────────────
 const navItems = [
-  { to: "/dashboard",            label: "Dashboard",    icon: LayoutDashboard, color: "#6366f1", disabled: false },
-  { to: "/dashboard/jobs",       label: "Jobs",         icon: Briefcase,       color: "#0ea5e9", disabled: false },
-  { to: "/dashboard/applications", label: "Applications", icon: FileText,  color: "#d97706", disabled: false },
-  { to: "/dashboard/resume",      label: "Resume",       icon: FileStack, color: "#8b5cf6", disabled: false },
-  { to: "/dashboard/coach",       label: "AI Coach",     icon: Bot,       color: "#16a34a", disabled: false },
+  { to: "/dashboard",              label: "Dashboard",    icon: LayoutDashboard, color: "#6366f1", disabled: false },
+  { to: "/dashboard/jobs",         label: "Jobs",         icon: Briefcase,       color: "#0ea5e9", disabled: false },
+  { to: "/dashboard/applications", label: "Applications", icon: FileText,        color: "#d97706", disabled: false },
+  { to: "/dashboard/resume",       label: "Resume",       icon: FileStack,       color: "#8b5cf6", disabled: false },
+  { to: "/dashboard/coach",        label: "AI Coach",     icon: Bot,             color: "#16a34a", disabled: false },
+  { to: "/dashboard/emails",       label: "Emails",       icon: Mail,            color: "#0891b2", disabled: false },
 ];
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────

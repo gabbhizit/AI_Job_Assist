@@ -2,6 +2,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { fetchAndFilterJobs, cleanupStaleJobs } from "@/lib/jobs/fetcher";
 import { matchJobsForUser } from "@/lib/matching/scorer";
 import { createPipelineLog } from "@/lib/utils/pipeline-logger";
+import { syncGmailForUser } from "@/lib/gmail/sync";
 import type { ParsedResume, Database } from "@/lib/supabase/types";
 import { NextResponse } from "next/server";
 
@@ -104,7 +105,29 @@ export async function POST(request: Request) {
     }
   }
 
-  // Step 5: Alert on failures
+  // Step 5: Sync Gmail for all connected users
+  log.step("gmail_sync");
+  try {
+    const { data: connectedUsers } = await supabase
+      .from("profiles")
+      .select("id")
+      .not("google_refresh_token", "is", null) as { data: { id: string }[] | null };
+
+    let totalEmailsSynced = 0;
+    for (const profile of connectedUsers ?? []) {
+      const result = await syncGmailForUser(profile.id, supabase);
+      totalEmailsSynced += result.synced;
+    }
+
+    log.success("gmail_sync", {
+      usersProcessed: connectedUsers?.length ?? 0,
+      totalEmailsSynced,
+    });
+  } catch (e) {
+    log.error("gmail_sync", e);
+  }
+
+  // Step 6: Alert on failures
   if (log.hasErrors()) {
     // TODO: Send alert email via Resend to ADMIN_EMAIL
     console.error("Pipeline errors:", JSON.stringify(log.summary()));
