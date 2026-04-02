@@ -28,7 +28,9 @@ export interface ApplicationItem {
 
 export interface ApplicationStats {
   totalApplied: number;
+  appliedThisWeek: number;
   responseRate: number;
+  phoneScreenCount: number;
   interviewCount: number;
   offerCount: number;
   avgMatchScore: number;
@@ -108,7 +110,11 @@ export async function GET() {
   });
 
   // Compute stats
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const applied = applications.filter((a) => a.userStatus === "applied").length;
+  const appliedThisWeek = applications.filter(
+    (a) => a.userStatus === "applied" && a.statusUpdatedAt && a.statusUpdatedAt >= sevenDaysAgo
+  ).length;
   const phoneScreen = applications.filter((a) => a.userStatus === "phone_screen").length;
   const interview = applications.filter((a) => a.userStatus === "interview").length;
   const offer = applications.filter((a) => a.userStatus === "offer").length;
@@ -122,7 +128,9 @@ export async function GET() {
 
   const stats: ApplicationStats = {
     totalApplied: applied,
+    appliedThisWeek,
     responseRate,
+    phoneScreenCount: phoneScreen,
     interviewCount: interview,
     offerCount: offer,
     avgMatchScore,

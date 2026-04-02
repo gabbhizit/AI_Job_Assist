@@ -13,6 +13,8 @@ type View = "kanban" | "list";
 
 const DEFAULT_STATS: ApplicationStats = {
   totalApplied: 0,
+  appliedThisWeek: 0,
+  phoneScreenCount: 0,
   responseRate: 0,
   interviewCount: 0,
   offerCount: 0,
@@ -198,9 +200,14 @@ function computeStats(apps: ApplicationItem[]): ApplicationStats {
   const offer = apps.filter((a) => a.userStatus === "offer").length;
   const rejected = apps.filter((a) => a.userStatus === "rejected").length;
   const responded = phoneScreen + interview + offer + rejected;
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   return {
     totalApplied: applied,
+    appliedThisWeek: apps.filter(
+      (a) => a.userStatus === "applied" && a.statusUpdatedAt && a.statusUpdatedAt >= sevenDaysAgo
+    ).length,
     responseRate: applied > 0 ? Math.round((responded / applied) * 100) : 0,
+    phoneScreenCount: phoneScreen,
     interviewCount: interview,
     offerCount: offer,
     avgMatchScore:

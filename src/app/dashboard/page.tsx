@@ -119,6 +119,11 @@ export default function DashboardPage() {
   const [savedCount, setSavedCount] = useState(0);
   const [userName, setUserName] = useState("there");
   const [weekNum, setWeekNum] = useState<number | null>(null);
+  const [appStats, setAppStats] = useState<{
+    appliedThisWeek: number;
+    interviewCount: number;
+    phoneScreenCount: number;
+  } | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -131,18 +136,20 @@ export default function DashboardPage() {
       setUserName(raw.charAt(0).toUpperCase() + raw.slice(1));
 
       // Parallel API calls
-      const [jobsRes, savedRes, resumeRes, profileRes] = await Promise.all([
+      const [jobsRes, savedRes, resumeRes, profileRes, appsRes] = await Promise.all([
         fetch("/api/jobs"),
         fetch("/api/jobs/saved"),
         fetch("/api/resume"),
         fetch("/api/profile"),
+        fetch("/api/applications"),
       ]);
 
-      const [jobsData, savedData, resumeData, profileData] = await Promise.all([
+      const [jobsData, savedData, resumeData, profileData, appsData] = await Promise.all([
         jobsRes.json(),
         savedRes.json(),
         resumeRes.json(),
         profileRes.json(),
+        appsRes.json(),
       ]);
 
       setMatches(jobsData.matches || []);
@@ -151,6 +158,15 @@ export default function DashboardPage() {
         resumeData.resume?.parsing_status === "completed" &&
           resumeData.resume?.parsed_data != null
       );
+
+      // Application tracking stats
+      if (appsData.stats) {
+        setAppStats({
+          appliedThisWeek: appsData.stats.appliedThisWeek,
+          interviewCount: appsData.stats.interviewCount,
+          phoneScreenCount: appsData.stats.phoneScreenCount,
+        });
+      }
 
       // Week counter from profile created_at
       const createdAt = profileData.profile?.created_at;
@@ -176,9 +192,24 @@ export default function DashboardPage() {
   const topJobs = matches.slice(0, 5);
 
   const stats = [
-    { value: "—",           change: "tracking coming soon" },
-    { value: "—",           change: "tracking coming soon" },
-    { value: "—",           change: "tracking coming soon" },
+    {
+      value: appStats ? String(appStats.appliedThisWeek) : "—",
+      change: appStats
+        ? appStats.appliedThisWeek === 1 ? "application this week" : "applications this week"
+        : "loading…",
+    },
+    {
+      value: appStats ? String(appStats.interviewCount) : "—",
+      change: appStats
+        ? appStats.interviewCount === 1 ? "interview scheduled" : "interviews scheduled"
+        : "loading…",
+    },
+    {
+      value: appStats ? String(appStats.phoneScreenCount) : "—",
+      change: appStats
+        ? appStats.phoneScreenCount === 1 ? "at phone screen stage" : "at phone screen stage"
+        : "loading…",
+    },
     { value: `${avgMatch}%`, change: `from ${matches.length} matched jobs` },
   ];
 
