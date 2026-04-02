@@ -124,9 +124,11 @@ src/
     page.tsx                          — root landing page (minimal)
     login/page.tsx                    — Google OAuth login
     dashboard/
-      layout.tsx                      — sidebar + header layout
-      page.tsx                        — top 15 matched jobs
-      jobs/saved/page.tsx             — saved jobs
+      layout.tsx                      — OfferPath layout: sidebar + main (bg-[#f7f8fc], no Header on desktop)
+      page.tsx                        — OfferPath overview dashboard (greeting, stat cards, health gauge, top-5 jobs, coming-soon panels)
+      jobs/
+        page.tsx                      — full job list with FilterBar + JobCard (moved from old dashboard/page.tsx)
+        saved/page.tsx                — saved jobs
       resume/page.tsx                 — upload + editable parsed resume
       preferences/page.tsx            — target roles, locations, salary, etc.
     api/
@@ -142,7 +144,8 @@ src/
       cron/daily-pipeline/route.ts    — daily fetch + match + notify + cleanup
       test/pipeline/route.ts          — DEV ONLY: structured pipeline test (createPipelineLog)
   components/
-    layout/sidebar.tsx, header.tsx
+    layout/sidebar.tsx                — OfferPath sidebar (brand + flame icon, health score ring, nav with Coming Soon pills, sign-out, upgrade button)
+    layout/header.tsx                 — mobile-only bar (md:hidden); desktop nav handled by sidebar
     jobs/job-card.tsx
     resume/upload-form.tsx, parsed-editor.tsx, confidence-banner.tsx
     ui/                               — shadcn components (button, card, badge, input, etc.)
@@ -306,10 +309,13 @@ SUPABASE_ACCESS_TOKEN=<token> npx supabase db query --linked "SELECT COUNT(*) FR
 
 ### ✅ Built & Working
 - Google OAuth login (Supabase)
-- Dashboard with job matches display + FilterBar (role, date, type, level, H1B, E-Verified filters)
+- **OfferPath dashboard UI** (Figma-matched redesign):
+  - Sidebar: OfferPath brand (purple flame), health score ring (derived from avg match score), nav with disabled "Applications" + "AI Coach" (Coming Soon pills), sign-out, Profile/Settings/Upgrade buttons
+  - Dashboard overview (`/dashboard`): greeting + date + week counter, 4 stat cards (3 placeholder "—" until app tracking built, 1 real avg match rate), health score gauge, top-5 compact job list, OPT Countdown / Today's Actions / Recent Activity (all Coming Soon)
+  - Full job list with FilterBar moved to `/dashboard/jobs`
 - Resume upload → Claude parse → editable review UI
 - Preferences form
-- Saved jobs page
+- Saved jobs page (`/dashboard/jobs/saved`)
 - Job matching engine (rule-based scoring)
 - Daily cron pipeline structure
 - SerpAPI + Adzuna + The Muse + JSearch (fallback) job sources
@@ -317,18 +323,22 @@ SUPABASE_ACCESS_TOKEN=<token> npx supabase db query --linked "SELECT COUNT(*) FR
 - Dynamic search params from user resumes — Claude-generated cache, auto-bootstrapped, incremental updates on upload
 - Delta fetch + match on resume upload — immediate job matches without waiting for cron
 - Structured pipeline logging — per-source breakdown, queries/locations used, timing per step
-- H1B Sponsor (blue badge) + E-Verified (emerald badge) on job cards
+- H1B Sponsor + E-Verified badges on job cards
 - sponsor_friendly_companies seed table
 - Full DB schema with RLS + 3 migrations applied
 - Chrome Extension (MV3) — autofill for LinkedIn Easy Apply, Greenhouse, Lever
 - Dev test pipeline endpoint (`/api/test/pipeline`)
 
 ### 🚧 Remaining
+- [ ] **Application tracking backend** — need `/api/applications` stats endpoint (applied count per week, interview count, in-review count) to power the 3 placeholder stat cards on dashboard. `job_matches.user_status` has "applied" but no aggregation query yet
+- [ ] **OPT end date in `profiles`** — add `opt_end_date` column + UI field in preferences/profile; powers OPT Countdown widget on dashboard
+- [ ] **Today's Actions panel** — AI-generated nudges based on match activity + OPT proximity
+- [ ] **Recent Activity panel** — surface `user_interactions` table in dashboard UI
 - [ ] Resend email integration — daily digest + pipeline failure alerts
 - [ ] Trial/paid plan logic (1-week free trial gate)
 - [ ] Stripe Checkout — subscription billing
 - [ ] Landing page at `/` — currently minimal placeholder
-- [ ] Mobile responsiveness polish
+- [ ] Mobile responsiveness polish (sidebar hidden on mobile, no hamburger menu yet)
 - [ ] Production deployment to Vercel
 - [ ] End-to-end cron testing with real SerpAPI data
 

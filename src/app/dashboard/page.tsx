@@ -1,18 +1,15 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { JobCard } from "@/components/jobs/job-card";
-import { FilterBar, DEFAULT_FILTERS } from "@/components/jobs/filter-bar";
-import type { JobFilters } from "@/components/jobs/filter-bar";
-import type { ScoreBreakdown } from "@/lib/supabase/types";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
+import { Building2, Zap, Lock, ArrowRight } from "lucide-react";
 
+// ── Types ─────────────────────────────────────────────────────────────────────
 interface MatchedJob {
   id: string;
   score: number;
-  score_breakdown: ScoreBreakdown;
-  job_id: string;
   jobs: {
     id: string;
     title: string;
@@ -21,164 +18,410 @@ interface MatchedJob {
     is_remote: boolean;
     salary_min: number | null;
     salary_max: number | null;
-    skills_extracted: string[];
-    application_url: string | null;
-    posted_at: string | null;
     is_h1b_sponsor: boolean;
     is_everified: boolean;
+    application_url: string | null;
   };
 }
 
+// ── ScoreChip (ported from Figma Dashboard.tsx) ───────────────────────────────
+function ScoreChip({ score }: { score: number }) {
+  const color = score >= 80 ? "#16a34a" : score >= 65 ? "#d97706" : "#dc2626";
+  return (
+    <span style={{
+      fontSize: "12px", color, background: `${color}12`,
+      padding: "2px 8px", borderRadius: "5px", lineHeight: "18px",
+      display: "inline-block", fontWeight: 500,
+    }}>
+      {score}%
+    </span>
+  );
+}
+
+// ── VisaBadge (ported from Figma Dashboard.tsx) ───────────────────────────────
+function VisaBadge({ status }: { status: boolean | null }) {
+  if (status === true)
+    return (
+      <span style={{
+        fontSize: "11px", color: "#16a34a", background: "#16a34a10",
+        padding: "1px 6px", borderRadius: "4px", border: "1px solid #16a34a20",
+      }}>
+        H1B ✓
+      </span>
+    );
+  if (status === false)
+    return (
+      <span style={{
+        fontSize: "11px", color: "#dc2626", background: "#dc262610",
+        padding: "1px 6px", borderRadius: "4px", border: "1px solid #dc262620",
+      }}>
+        No history
+      </span>
+    );
+  return (
+    <span style={{
+      fontSize: "11px", color: "#aaaaaa", background: "#f5f5f5",
+      padding: "1px 6px", borderRadius: "4px", border: "1px solid #e8e8e8",
+    }}>
+      Unknown
+    </span>
+  );
+}
+
+// ── HealthGauge (ported from Figma Dashboard.tsx) ────────────────────────────
+function HealthGauge({ score }: { score: number }) {
+  const r = 52;
+  const circ = Math.PI * r;
+  const offset = circ - (score / 100) * circ;
+  const color = score >= 70 ? "#16a34a" : score >= 50 ? "#d97706" : "#dc2626";
+  return (
+    <div className="flex flex-col items-center">
+      <svg width="140" height="80" viewBox="0 0 140 80">
+        <path d="M 14 70 A 56 56 0 0 1 126 70" fill="none" stroke="#f0f0f0" strokeWidth="9" strokeLinecap="round" />
+        <path d="M 14 70 A 56 56 0 0 1 126 70" fill="none" stroke={color} strokeWidth="9" strokeLinecap="round"
+          strokeDasharray={circ} strokeDashoffset={offset} />
+        <text x="70" y="60" textAnchor="middle" fill="#111111" fontSize="24" fontWeight="600">{score}</text>
+        <text x="70" y="74" textAnchor="middle" fill="#aaaaaa" fontSize="10">/ 100</text>
+      </svg>
+    </div>
+  );
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function formatSalary(min: number | null, max: number | null): string {
+  if (!min && !max) return "—";
+  const fmt = (n: number) => n >= 1000 ? `$${Math.round(n / 1000)}k` : `$${n}`;
+  if (min && max) return `${fmt(min)}–${fmt(max)}`;
+  if (min) return `From ${fmt(min)}`;
+  return `Up to ${fmt(max!)}`;
+}
+
+function formatDate(): string {
+  return new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+}
+
+// ── Stat card configs (exact from Figma statConfigs) ─────────────────────────
+const statConfigs = [
+  { label: "Applied this week",  gradient: "from-[#6366f1]/8 to-[#6366f1]/3",  accent: "#6366f1" },
+  { label: "Interviews pending", gradient: "from-[#8b5cf6]/8 to-[#8b5cf6]/3",  accent: "#8b5cf6" },
+  { label: "In review",          gradient: "from-[#d97706]/8 to-[#d97706]/3",   accent: "#d97706" },
+  { label: "Avg match rate",     gradient: "from-[#16a34a]/8 to-[#16a34a]/3",   accent: "#16a34a" },
+];
+
+// ── Dashboard Page ─────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const [matches, setMatches] = useState<MatchedJob[]>([]);
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [hasResume, setHasResume] = useState<boolean | null>(null);
-  const [filters, setFilters] = useState<JobFilters>(DEFAULT_FILTERS);
 
-  const fetchMatches = useCallback(
-    async (activeFilters: JobFilters) => {
-      const params = new URLSearchParams();
-      if (activeFilters.role) params.set("role", activeFilters.role);
-      if (activeFilters.h1b_sponsor) params.set("h1b_sponsor", "true");
-      if (activeFilters.everified) params.set("everified", "true");
-      if (activeFilters.date_posted) params.set("date_posted", activeFilters.date_posted);
-      if (activeFilters.job_type) params.set("job_type", activeFilters.job_type);
-      if (activeFilters.experience_level) params.set("experience_level", activeFilters.experience_level);
+  // Real data
+  const [matches, setMatches] = useState<MatchedJob[]>([]);
+  const [savedCount, setSavedCount] = useState(0);
+  const [userName, setUserName] = useState("there");
+  const [weekNum, setWeekNum] = useState<number | null>(null);
 
-      const [jobsRes, resumeRes] = await Promise.all([
-        fetch(`/api/jobs?${params.toString()}`),
+  useEffect(() => {
+    async function loadData() {
+      const supabase = createClient();
+
+      // User name
+      const { data: authData } = await supabase.auth.getUser();
+      const email = authData.user?.email ?? "";
+      const raw = email.split("@")[0]?.split(".")[0] ?? "there";
+      setUserName(raw.charAt(0).toUpperCase() + raw.slice(1));
+
+      // Parallel API calls
+      const [jobsRes, savedRes, resumeRes, profileRes] = await Promise.all([
+        fetch("/api/jobs"),
+        fetch("/api/jobs/saved"),
         fetch("/api/resume"),
+        fetch("/api/profile"),
       ]);
 
-      const jobsData = await jobsRes.json();
-      const resumeData = await resumeRes.json();
+      const [jobsData, savedData, resumeData, profileData] = await Promise.all([
+        jobsRes.json(),
+        savedRes.json(),
+        resumeRes.json(),
+        profileRes.json(),
+      ]);
 
       setMatches(jobsData.matches || []);
+      setSavedCount(savedData.jobs?.length || 0);
       setHasResume(
         resumeData.resume?.parsing_status === "completed" &&
           resumeData.resume?.parsed_data != null
       );
-      setLoading(false);
-    },
-    []
-  );
 
-  // Initial load
-  useEffect(() => {
-    fetchMatches(filters);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      // Week counter from profile created_at
+      const createdAt = profileData.profile?.created_at;
+      if (createdAt) {
+        const weeks = Math.ceil(
+          (Date.now() - new Date(createdAt).getTime()) / (7 * 24 * 60 * 60 * 1000)
+        );
+        setWeekNum(Math.max(1, weeks));
+      }
+
+      setLoading(false);
+    }
+
+    loadData();
   }, []);
 
-  // Re-query on filter change (local DB query only — no external API calls)
-  const handleFilterChange = useCallback(
-    (newFilters: JobFilters) => {
-      setFilters(newFilters);
-      setLoading(true);
-      fetchMatches(newFilters).finally(() => setLoading(false));
-    },
-    [fetchMatches]
-  );
+  // Computed stats
+  const avgMatch =
+    matches.length > 0
+      ? Math.round(matches.reduce((s, m) => s + m.score, 0) / matches.length)
+      : 0;
+  const healthScore = Math.min(100, Math.round(45 + avgMatch * 0.55));
+  const topJobs = matches.slice(0, 5);
 
-  const handleAction = async (jobId: string, action: string) => {
-    await fetch(`/api/jobs/${jobId}/action`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
-    });
+  const stats = [
+    { value: "—",           change: "tracking coming soon" },
+    { value: "—",           change: "tracking coming soon" },
+    { value: "—",           change: "tracking coming soon" },
+    { value: `${avgMatch}%`, change: `from ${matches.length} matched jobs` },
+  ];
 
-    if (action === "save" || action === "dismiss") {
-      setMatches((prev) => prev.filter((m) => m.jobs.id !== jobId));
-    }
-  };
-
-  if (loading && hasResume === null) {
+  // ── No resume state ──────────────────────────────────────────────────────────
+  if (!loading && !hasResume) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="px-8 py-7">
+        <div className="text-center py-16">
+          <h1 className="text-2xl font-bold mb-4" style={{ color: "#111111", letterSpacing: "-0.03em" }}>
+            Welcome to OfferPath 👋
+          </h1>
+          <p className="mb-6 max-w-md mx-auto" style={{ color: "#888888", fontSize: "14px" }}>
+            Upload your resume to start getting personalised job matches. We analyse your skills and
+            experience to find the best H1B-friendly opportunities.
+          </p>
+          <Link
+            href="/dashboard/resume"
+            className="inline-block px-6 py-2.5 rounded-[7px] text-white text-sm font-medium"
+            style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
+          >
+            Upload Resume →
+          </Link>
+        </div>
       </div>
     );
   }
-
-  if (!hasResume) {
-    return (
-      <div className="text-center py-16">
-        <h1 className="text-2xl font-bold mb-4">Welcome to AI Job Copilot</h1>
-        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-          Upload your resume to start getting personalized job matches. We
-          analyze your skills and experience to find the best opportunities for
-          you.
-        </p>
-        <Link href="/dashboard/resume">
-          <Button size="lg">Upload Resume</Button>
-        </Link>
-      </div>
-    );
-  }
-
-  const hasActiveFilters = Object.values(filters).some((v) => v !== "" && v !== false);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Today&apos;s Top Matches</h1>
-        {!loading && (
-          <span className="text-sm text-muted-foreground">
-            {matches.length} job{matches.length !== 1 ? "s" : ""}
-          </span>
-        )}
+    <div className="px-8 py-7" style={{ maxWidth: "1100px" }}>
+
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <div className="mb-7">
+        <h1 style={{ color: "#111111", letterSpacing: "-0.03em", fontSize: "26px", fontWeight: 700 }}>
+          Good morning, {loading ? "…" : userName} 👋
+        </h1>
+        <p style={{ fontSize: "13px", color: "#aaaaaa", marginTop: "3px" }}>
+          {formatDate()}{weekNum ? ` · Week ${weekNum} of your job search` : ""}
+        </p>
       </div>
 
-      <FilterBar filters={filters} onChange={handleFilterChange} />
+      {/* ── Stat cards ─────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-4 gap-3 mb-6">
+        {stats.map((s, i) => {
+          const cfg = statConfigs[i];
+          return (
+            <div
+              key={cfg.label}
+              className={`bg-gradient-to-br ${cfg.gradient} rounded-[10px] p-4`}
+              style={{ borderWidth: "1px", borderStyle: "solid", borderColor: `${cfg.accent}20` }}
+            >
+              <p style={{ fontSize: "11px", color: "#888888", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                {cfg.label}
+              </p>
+              <p style={{ fontSize: "30px", color: "#111111", lineHeight: 1.1, marginTop: "6px", letterSpacing: "-0.04em", fontWeight: 700 }}>
+                {loading ? "…" : s.value}
+              </p>
+              <p style={{ fontSize: "12px", color: cfg.accent, marginTop: "6px" }}>
+                {s.change}
+              </p>
+            </div>
+          );
+        })}
+      </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center h-32">
-          <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : matches.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <p className="text-lg mb-2">
-            {hasActiveFilters ? "No jobs match your filters" : "No job matches yet"}
+      {/* ── Row 1: Health Score + OPT Countdown ────────────────────────────── */}
+      <div className="grid gap-5 mb-5" style={{ gridTemplateColumns: "1fr 290px" }}>
+
+        {/* Health Score */}
+        <div className="bg-white border border-[#e8e8e8] rounded-[10px] p-5 shadow-sm">
+          <p style={{ fontSize: "11px", color: "#aaaaaa", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "16px" }}>
+            Search Health Score
           </p>
-          <p className="text-sm">
-            {hasActiveFilters
-              ? "Try adjusting or clearing your filters."
-              : "Jobs are fetched and matched daily. Check back tomorrow, or update your "}
-            {!hasActiveFilters && (
-              <Link
-                href="/dashboard/preferences"
-                className="text-primary underline"
-              >
-                preferences
+          <div className="flex items-center gap-8">
+            <HealthGauge score={loading ? 75 : healthScore} />
+            <div className="flex-1">
+              <p style={{ fontSize: "13px", color: "#555555", lineHeight: 1.7 }}>
+                Your score is{" "}
+                <span style={{ color: "#111111", fontWeight: 600 }}>{loading ? "…" : healthScore}</span>.
+                {" "}Derived from your avg match quality. Keep your preferences up-to-date to improve results.
+              </p>
+              <div className="grid grid-cols-3 gap-3 mt-4">
+                {[
+                  { label: "Profile",  val: "84%", w: "84%", c: "#16a34a" },
+                  { label: "Volume",   val: "80%", w: "80%", c: "#6366f1" },
+                  { label: "Quality",  val: loading ? "—" : `${Math.round(avgMatch * 0.8)}%`, w: loading ? "0%" : `${Math.round(avgMatch * 0.8)}%`, c: "#d97706" },
+                ].map((f) => (
+                  <div key={f.label}>
+                    <div className="flex justify-between mb-1.5">
+                      <span style={{ fontSize: "11px", color: "#aaaaaa" }}>{f.label}</span>
+                      <span style={{ fontSize: "11px", color: "#555555", fontWeight: 500 }}>{f.val}</span>
+                    </div>
+                    <div className="h-1.5 bg-[#f0f0f0] rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: f.w, background: f.c }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* OPT Countdown — Coming Soon */}
+        <div
+          className="rounded-[10px] p-5 shadow-sm flex flex-col"
+          style={{
+            background: "linear-gradient(135deg, rgba(217,119,6,0.08), rgba(245,158,11,0.04))",
+            border: "1px solid rgba(217,119,6,0.2)",
+          }}
+        >
+          <p style={{ fontSize: "11px", color: "#d97706", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "10px", fontWeight: 500 }}>
+            OPT Countdown
+          </p>
+          <div className="flex flex-col items-center justify-center flex-1 gap-3 py-4">
+            <Lock size={22} color="#d97706" strokeWidth={1.5} style={{ opacity: 0.5 }} />
+            <p style={{ fontSize: "12px", color: "#aaaaaa", textAlign: "center", lineHeight: 1.6 }}>
+              Add your OPT end date in your profile to enable countdown tracking
+            </p>
+            <span style={{
+              fontSize: "10px", background: "#f0f0f0", color: "#aaaaaa",
+              padding: "2px 8px", borderRadius: "4px",
+            }}>
+              Coming Soon
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Row 2: Top Jobs + Right Panel ──────────────────────────────────── */}
+      <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 330px" }}>
+
+        {/* Top Matched Jobs */}
+        <div className="bg-white border border-[#e8e8e8] rounded-[10px] overflow-hidden shadow-sm">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-[#f0f0f0]">
+            <p style={{ fontSize: "11px", color: "#aaaaaa", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+              Top Matched Jobs Today
+            </p>
+            <Link
+              href="/dashboard/jobs"
+              className="flex items-center gap-1 transition-colors hover:text-[#6366f1]"
+              style={{ fontSize: "12px", color: "#aaaaaa" }}
+            >
+              View all <ArrowRight size={12} />
+            </Link>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="h-5 w-5 border-2 border-[#6366f1] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : topJobs.length === 0 ? (
+            <div className="px-5 py-8 text-center">
+              <p style={{ fontSize: "13px", color: "#aaaaaa" }}>No job matches yet.</p>
+              <Link href="/dashboard/resume" style={{ fontSize: "12px", color: "#6366f1" }} className="underline mt-1 inline-block">
+                Upload your resume to get started
               </Link>
-            )}
-            {!hasActiveFilters && " for better results."}
-          </p>
+            </div>
+          ) : (
+            topJobs.map((match, i) => (
+              <div
+                key={match.id}
+                onClick={() => router.push("/dashboard/jobs")}
+                className={`flex items-center gap-4 px-5 py-3.5 hover:bg-[#fafafa] transition-colors cursor-pointer ${i < topJobs.length - 1 ? "border-b border-[#f8f8f8]" : ""}`}
+              >
+                {/* Company logo placeholder */}
+                <div
+                  className="flex items-center justify-center flex-shrink-0 rounded-[8px] border border-[#e8e8e8] shadow-sm"
+                  style={{ width: "36px", height: "36px", background: "linear-gradient(135deg, #f5f5f5, #e8e8e8)" }}
+                >
+                  <Building2 size={15} color="#aaaaaa" />
+                </div>
+
+                {/* Title + company */}
+                <div className="flex-1 min-w-0">
+                  <p style={{ fontSize: "13px", color: "#111111" }}>{match.jobs.title}</p>
+                  <p style={{ fontSize: "12px", color: "#aaaaaa", marginTop: "2px" }}>
+                    {match.jobs.company}
+                    {match.jobs.location ? ` · ${match.jobs.location}` : ""}
+                    {match.jobs.is_remote && !match.jobs.location ? " · Remote" : ""}
+                    {match.jobs.is_remote && match.jobs.location ? " · Remote" : ""}
+                  </p>
+                </div>
+
+                {/* Badges + score */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <VisaBadge status={match.jobs.is_h1b_sponsor ? true : null} />
+                  <ScoreChip score={match.score} />
+                </div>
+
+                {/* Salary */}
+                <span style={{ fontSize: "12px", color: "#cccccc", flexShrink: 0 }}>
+                  {formatSalary(match.jobs.salary_min, match.jobs.salary_max)}
+                </span>
+              </div>
+            ))
+          )}
         </div>
-      ) : (
-        <div className="space-y-4">
-          {matches.map((match) => (
-            <JobCard
-              key={match.id}
-              matchId={match.id}
-              jobId={match.jobs.id}
-              title={match.jobs.title}
-              company={match.jobs.company}
-              location={match.jobs.location}
-              isRemote={match.jobs.is_remote}
-              salaryMin={match.jobs.salary_min}
-              salaryMax={match.jobs.salary_max}
-              score={match.score}
-              scoreBreakdown={match.score_breakdown}
-              skills={match.jobs.skills_extracted}
-              applicationUrl={match.jobs.application_url}
-              postedAt={match.jobs.posted_at}
-              isH1bSponsor={match.jobs.is_h1b_sponsor}
-              isEverified={match.jobs.is_everified}
-              onAction={handleAction}
-            />
-          ))}
+
+        {/* Right panel — Coming Soon */}
+        <div className="flex flex-col gap-4">
+          {/* Today's Actions */}
+          <div className="bg-white border border-[#e8e8e8] rounded-[10px] overflow-hidden shadow-sm">
+            <div className="px-5 py-4 border-b border-[#f0f0f0] flex items-center gap-2">
+              <Zap size={13} color="#6366f1" />
+              <p style={{ fontSize: "11px", color: "#aaaaaa", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                Today&apos;s Actions
+              </p>
+            </div>
+            <div className="flex flex-col items-center justify-center py-8 gap-3 px-5">
+              <Zap size={20} color="#6366f1" strokeWidth={1.5} style={{ opacity: 0.35 }} />
+              <p style={{ fontSize: "12px", color: "#aaaaaa", textAlign: "center", lineHeight: 1.6 }}>
+                AI-generated daily nudges based on your activity and OPT timeline
+              </p>
+              <span style={{
+                fontSize: "10px", background: "#f0f0f0", color: "#aaaaaa",
+                padding: "2px 8px", borderRadius: "4px",
+              }}>
+                Coming Soon
+              </span>
+            </div>
+          </div>
+
+          {/* Recent Activity */}
+          <div className="bg-white border border-[#e8e8e8] rounded-[10px] overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#f0f0f0]">
+              <p style={{ fontSize: "11px", color: "#aaaaaa", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                Recent Activity
+              </p>
+            </div>
+            <div className="flex flex-col items-center justify-center py-8 gap-3 px-5">
+              <Lock size={18} color="#aaaaaa" strokeWidth={1.5} style={{ opacity: 0.4 }} />
+              <p style={{ fontSize: "12px", color: "#aaaaaa", textAlign: "center", lineHeight: 1.6 }}>
+                Application activity timeline coming soon
+              </p>
+              <span style={{
+                fontSize: "10px", background: "#f0f0f0", color: "#aaaaaa",
+                padding: "2px 8px", borderRadius: "4px",
+              }}>
+                Coming Soon
+              </span>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

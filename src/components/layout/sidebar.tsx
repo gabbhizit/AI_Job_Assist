@@ -1,72 +1,200 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import {
+  LayoutDashboard, Briefcase, FileText, FileStack, Bot,
+  Settings, Zap, User, Bookmark, Flame,
+} from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
+// ── ScoreRing (ported from Figma Layout.tsx) ──────────────────────────────────
+function ScoreRing({ score }: { score: number }) {
+  const r = 16;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (score / 100) * circ;
+  const color = score >= 70 ? "#16a34a" : score >= 50 ? "#d97706" : "#dc2626";
+  return (
+    <div className="relative flex items-center justify-center w-10 h-10">
+      <svg className="absolute inset-0 -rotate-90" width="40" height="40">
+        <circle cx="20" cy="20" r={r} fill="none" stroke="#e8e8e8" strokeWidth="2.5" />
+        <circle
+          cx="20" cy="20" r={r} fill="none" stroke={color} strokeWidth="2.5"
+          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+        />
+      </svg>
+      <span style={{ fontSize: "10px", color: "#111111", lineHeight: 1, fontWeight: 600 }}>{score}</span>
+    </div>
+  );
+}
+
+// ── Nav items ─────────────────────────────────────────────────────────────────
 const navItems = [
-  { href: "/dashboard", label: "Jobs", icon: "briefcase" },
-  { href: "/dashboard/jobs/saved", label: "Saved", icon: "bookmark" },
-  { href: "/dashboard/resume", label: "Resume", icon: "file-text" },
-  { href: "/dashboard/preferences", label: "Preferences", icon: "settings" },
+  { to: "/dashboard",            label: "Dashboard",    icon: LayoutDashboard, color: "#6366f1", disabled: false },
+  { to: "/dashboard/jobs",       label: "Jobs",         icon: Briefcase,       color: "#0ea5e9", disabled: false },
+  { to: "/dashboard/jobs/saved", label: "Saved",        icon: Bookmark,        color: "#8b5cf6", disabled: false },
+  { to: "#",                     label: "Applications", icon: FileText,        color: "#d97706", disabled: true  },
+  { to: "/dashboard/resume",     label: "Resume",       icon: FileStack,       color: "#8b5cf6", disabled: false },
+  { to: "#",                     label: "AI Coach",     icon: Bot,             color: "#16a34a", disabled: true  },
 ];
 
-const icons: Record<string, React.ReactNode> = {
-  briefcase: (
-    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-    </svg>
-  ),
-  bookmark: (
-    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
-    </svg>
-  ),
-  "file-text": (
-    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-    </svg>
-  ),
-  settings: (
-    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
-    </svg>
-  ),
-};
-
+// ── Sidebar ───────────────────────────────────────────────────────────────────
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [healthScore, setHealthScore] = useState(75);
+
+  // Derive health score from avg match score
+  useEffect(() => {
+    fetch("/api/jobs")
+      .then((r) => r.json())
+      .then((data) => {
+        const matches = data.matches || [];
+        if (matches.length > 0) {
+          const avg = Math.round(matches.reduce((s: number, m: { score: number }) => s + m.score, 0) / matches.length);
+          setHealthScore(Math.min(100, Math.round(50 + avg * 0.5)));
+        }
+      })
+      .catch(() => {/* keep default 75 */});
+  }, []);
+
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/");
+    router.refresh();
+  };
+
+  const handleComingSoon = (feature: string) => {
+    alert(`${feature} — Coming soon!`);
+  };
 
   return (
-    <aside className="w-64 border-r border-border bg-card min-h-screen p-5 hidden md:block">
-      <div className="mb-8 px-1">
-        <Link href="/dashboard" className="text-xl font-bold tracking-tight">
-          AI Job Copilot
-        </Link>
+    <aside
+      className="flex flex-col border-r border-[#e8e8e8] py-5 px-3 bg-white shadow-sm hidden md:flex"
+      style={{ width: "220px", minWidth: "220px", height: "100vh", position: "sticky", top: 0 }}
+    >
+      {/* Logo */}
+      <div className="px-3 mb-8 flex items-center gap-2">
+        <div
+          className="flex items-center justify-center rounded-[7px] shadow-sm"
+          style={{ width: "28px", height: "28px", background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
+        >
+          <Flame size={13} color="white" />
+        </div>
+        <span style={{ fontSize: "15px", fontWeight: 700, letterSpacing: "-0.03em", color: "#111111" }}>
+          OfferPath
+        </span>
       </div>
-      <nav className="space-y-1">
-        {navItems.map((item) => {
-          const isActive =
-            item.href === "/dashboard"
-              ? pathname === "/dashboard"
-              : pathname.startsWith(item.href);
+
+      {/* Health Score */}
+      <div className="flex items-center gap-3 px-3 mb-6 pb-5 border-b border-[#f0f0f0]">
+        <ScoreRing score={healthScore} />
+        <div>
+          <p style={{ fontSize: "11px", color: "#aaaaaa", lineHeight: 1 }}>Health Score</p>
+          <p style={{ fontSize: "13px", color: "#111111", marginTop: "3px", lineHeight: 1, fontWeight: 600 }}>
+            {healthScore} / 100
+          </p>
+        </div>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex flex-col gap-0.5 flex-1">
+        {navItems.map(({ to, label, icon: Icon, color, disabled }) => {
+          if (disabled) {
+            return (
+              <span
+                key={label}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-[7px]"
+                style={{ opacity: 0.4, cursor: "not-allowed" }}
+              >
+                <Icon size={15} strokeWidth={1.8} color="#aaaaaa" />
+                <span style={{ fontSize: "13px", lineHeight: 1, color: "#888888", flex: 1 }}>{label}</span>
+                <span style={{
+                  fontSize: "9px", background: "#f0f0f0", color: "#aaaaaa",
+                  padding: "1px 5px", borderRadius: "3px", lineHeight: "14px",
+                }}>
+                  Soon
+                </span>
+              </span>
+            );
+          }
+
+          const isActive = to === "/dashboard"
+            ? pathname === "/dashboard"
+            : pathname.startsWith(to);
+
           return (
             <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+              key={to}
+              href={to}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-[7px] transition-all"
+              style={
                 isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-foreground hover:bg-accent hover:text-accent-foreground"
-              )}
+                  ? { background: `${color}12`, color }
+                  : { color: "#888888" }
+              }
             >
-              {icons[item.icon]}
-              {item.label}
+              <Icon
+                size={15}
+                strokeWidth={isActive ? 2 : 1.8}
+                color={isActive ? color : "#aaaaaa"}
+              />
+              <span style={{ fontSize: "13px", lineHeight: 1, fontWeight: isActive ? 500 : 400 }}>
+                {label}
+              </span>
+              {isActive && (
+                <div className="ml-auto w-1.5 h-1.5 rounded-full" style={{ background: color }} />
+              )}
             </Link>
           );
         })}
       </nav>
+
+      {/* Bottom */}
+      <div className="flex flex-col gap-0.5 border-t border-[#f0f0f0] pt-4 mt-4">
+        <button
+          onClick={() => handleComingSoon("Profile settings")}
+          className="flex items-center gap-3 px-3 py-2 rounded-[6px] w-full text-left transition-colors hover:bg-[#f5f5f5]"
+          style={{ color: "#888888" }}
+        >
+          <User size={15} strokeWidth={1.8} />
+          <span style={{ fontSize: "13px", lineHeight: 1 }}>Profile</span>
+        </button>
+        <button
+          onClick={() => handleComingSoon("Settings")}
+          className="flex items-center gap-3 px-3 py-2 rounded-[6px] w-full text-left transition-colors hover:bg-[#f5f5f5]"
+          style={{ color: "#888888" }}
+        >
+          <Settings size={15} strokeWidth={1.8} />
+          <span style={{ fontSize: "13px", lineHeight: 1 }}>Settings</span>
+        </button>
+        <button
+          onClick={handleSignOut}
+          className="flex items-center gap-3 px-3 py-2 rounded-[6px] w-full text-left transition-colors hover:bg-[#f5f5f5]"
+          style={{ color: "#888888" }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#aaaaaa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          <span style={{ fontSize: "13px", lineHeight: 1 }}>Sign Out</span>
+        </button>
+        <button
+          onClick={() => handleComingSoon("Pro plan")}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-[7px] w-full text-left transition-all border"
+          style={{
+            background: "linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.1))",
+            color: "#6366f1",
+            borderColor: "rgba(99,102,241,0.15)",
+          }}
+        >
+          <Zap size={15} strokeWidth={1.8} />
+          <span style={{ fontSize: "13px", lineHeight: 1, fontWeight: 500 }}>Upgrade to Pro</span>
+        </button>
+      </div>
     </aside>
   );
 }
