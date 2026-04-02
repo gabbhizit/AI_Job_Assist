@@ -1,14 +1,12 @@
 "use client";
 
-import { Building2, Share2, Bookmark, BookmarkCheck, X, Plus, SendHorizonal, Flag, Check } from "lucide-react";
+import { Building2, Share2, X, SendHorizonal, Flag, Check } from "lucide-react";
 import type { MatchedJob } from "./job-list-item";
 
 interface JobDetailPanelProps {
   job: MatchedJob;
   userSkills: string[];
-  isSaved: boolean;
   isApplied: boolean;
-  onSave: () => void;
   onApply: () => void;
   onSkip: () => void;
   onShare: () => void;
@@ -50,9 +48,7 @@ function inferAts(url: string | null): string {
 export function JobDetailPanel({
   job,
   userSkills,
-  isSaved,
   isApplied,
-  onSave,
   onApply,
   onSkip,
   onShare,
@@ -162,17 +158,6 @@ export function JobDetailPanel({
                 title="Share"
               >
                 <Share2 size={13} />
-              </button>
-              <button
-                onClick={onSave}
-                className={`p-2 border rounded-[7px] transition-all shadow-sm ${
-                  isSaved
-                    ? "border-[#6366f1]/25 text-[#6366f1] bg-[#6366f1]/8"
-                    : "border-[#e8e8e8] bg-white text-[#aaaaaa] hover:text-[#6366f1] hover:border-[#6366f1]/25"
-                }`}
-                title={isSaved ? "Unsave" : "Save"}
-              >
-                {isSaved ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
               </button>
               <button
                 onClick={onSkip}
@@ -478,18 +463,6 @@ export function JobDetailPanel({
               <SendHorizonal size={14} /> Apply now
             </button>
           )}
-
-          <button
-            onClick={onSave}
-            className={`flex items-center gap-2 px-4 py-2.5 border rounded-[8px] transition-all ${
-              isSaved
-                ? "border-[#6366f1]/25 text-[#6366f1] bg-[#6366f1]/8"
-                : "border-[#e8e8e8] text-[#555555] hover:border-[#6366f1]/25 hover:text-[#6366f1]"
-            }`}
-            style={{ fontSize: "13px" }}
-          >
-            <Plus size={13} /> {isSaved ? "In queue ✓" : "Add to queue"}
-          </button>
 
           <button
             onClick={onShare}

@@ -568,9 +568,7 @@ export default function JobsPage() {
           <JobDetailPanel
             job={selectedJob}
             userSkills={userSkills}
-            isSaved={savedJobIds.includes(selectedJob.jobId)}
             isApplied={selectedJob.userStatus === "applied"}
-            onSave={() => handleSave(selectedJob.jobId)}
             onApply={() => handleApply(selectedJob)}
             onSkip={() => handleSkip(selectedJob)}
             onShare={() => setSharingJob(selectedJob)}
