@@ -29,7 +29,7 @@ export function Sheet({ isOpen, onClose, title, width = "420px", children }: She
     <div className="fixed inset-0 z-50 flex">
       {/* Overlay */}
       <div
-        className="flex-1 bg-black/20 backdrop-blur-[2px]"
+        className="flex-1 bg-black/50 backdrop-blur-[3px]"
         onClick={onClose}
       />
       {/* Panel */}
