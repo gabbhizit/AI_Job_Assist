@@ -146,7 +146,7 @@ export function JobCard({
               size="sm"
               className="ml-auto"
               onClick={() => {
-                onAction(jobId, "click_apply_link");
+                onAction(jobId, "apply");
                 window.open(applicationUrl, "_blank");
               }}
             >

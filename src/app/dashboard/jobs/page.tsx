@@ -81,7 +81,7 @@ export default function JobsPage() {
       body: JSON.stringify({ action }),
     });
 
-    if (action === "save" || action === "dismiss") {
+    if (action === "save" || action === "dismiss" || action === "apply") {
       setMatches((prev) => prev.filter((m) => m.jobs.id !== jobId));
     }
   };
