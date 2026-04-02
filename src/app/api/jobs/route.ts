@@ -45,7 +45,8 @@ export async function GET(request: NextRequest) {
         posted_at,
         quality_score,
         is_h1b_sponsor,
-        is_everified
+        is_everified,
+        description
       )
     `)
     .eq("user_id", user.id)

@@ -28,8 +28,13 @@ export async function GET() {
         salary_min,
         salary_max,
         job_type,
+        experience_level,
+        skills_extracted,
         application_url,
-        posted_at
+        posted_at,
+        is_h1b_sponsor,
+        is_everified,
+        description
       )
     `)
     .eq("user_id", user.id)
