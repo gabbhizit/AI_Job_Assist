@@ -8,6 +8,9 @@ import {
   Settings, Zap, User, Bookmark, Flame,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { ProfileModal } from "./profile-modal";
+import { SettingsModal } from "./settings-modal";
+import { UpgradeModal } from "./upgrade-modal";
 
 // ── ScoreRing (ported from Figma Layout.tsx) ──────────────────────────────────
 function ScoreRing({ score }: { score: number }) {
@@ -34,9 +37,9 @@ const navItems = [
   { to: "/dashboard",            label: "Dashboard",    icon: LayoutDashboard, color: "#6366f1", disabled: false },
   { to: "/dashboard/jobs",       label: "Jobs",         icon: Briefcase,       color: "#0ea5e9", disabled: false },
   { to: "/dashboard/jobs/saved", label: "Saved",        icon: Bookmark,        color: "#8b5cf6", disabled: false },
-  { to: "#",                     label: "Applications", icon: FileText,        color: "#d97706", disabled: true  },
-  { to: "/dashboard/resume",     label: "Resume",       icon: FileStack,       color: "#8b5cf6", disabled: false },
-  { to: "#",                     label: "AI Coach",     icon: Bot,             color: "#16a34a", disabled: true  },
+  { to: "/dashboard/applications", label: "Applications", icon: FileText,  color: "#d97706", disabled: false },
+  { to: "/dashboard/resume",      label: "Resume",       icon: FileStack, color: "#8b5cf6", disabled: false },
+  { to: "/dashboard/coach",       label: "AI Coach",     icon: Bot,       color: "#16a34a", disabled: false },
 ];
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -44,6 +47,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [healthScore, setHealthScore] = useState(75);
+  const [openModal, setOpenModal] = useState<"profile" | "settings" | "upgrade" | null>(null);
 
   // Derive health score from avg match score
   useEffect(() => {
@@ -64,10 +68,6 @@ export function Sidebar() {
     await supabase.auth.signOut();
     router.push("/");
     router.refresh();
-  };
-
-  const handleComingSoon = (feature: string) => {
-    alert(`${feature} — Coming soon!`);
   };
 
   return (
@@ -155,7 +155,7 @@ export function Sidebar() {
       {/* Bottom */}
       <div className="flex flex-col gap-0.5 border-t border-[#f0f0f0] pt-4 mt-4">
         <button
-          onClick={() => handleComingSoon("Profile settings")}
+          onClick={() => setOpenModal("profile")}
           className="flex items-center gap-3 px-3 py-2 rounded-[6px] w-full text-left transition-colors hover:bg-[#f5f5f5]"
           style={{ color: "#888888" }}
         >
@@ -163,7 +163,7 @@ export function Sidebar() {
           <span style={{ fontSize: "13px", lineHeight: 1 }}>Profile</span>
         </button>
         <button
-          onClick={() => handleComingSoon("Settings")}
+          onClick={() => setOpenModal("settings")}
           className="flex items-center gap-3 px-3 py-2 rounded-[6px] w-full text-left transition-colors hover:bg-[#f5f5f5]"
           style={{ color: "#888888" }}
         >
@@ -183,7 +183,7 @@ export function Sidebar() {
           <span style={{ fontSize: "13px", lineHeight: 1 }}>Sign Out</span>
         </button>
         <button
-          onClick={() => handleComingSoon("Pro plan")}
+          onClick={() => setOpenModal("upgrade")}
           className="flex items-center gap-3 px-3 py-2.5 rounded-[7px] w-full text-left transition-all border"
           style={{
             background: "linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.1))",
@@ -195,6 +195,10 @@ export function Sidebar() {
           <span style={{ fontSize: "13px", lineHeight: 1, fontWeight: 500 }}>Upgrade to Pro</span>
         </button>
       </div>
+
+      <ProfileModal isOpen={openModal === "profile"} onClose={() => setOpenModal(null)} />
+      <SettingsModal isOpen={openModal === "settings"} onClose={() => setOpenModal(null)} />
+      <UpgradeModal isOpen={openModal === "upgrade"} onClose={() => setOpenModal(null)} />
     </aside>
   );
 }

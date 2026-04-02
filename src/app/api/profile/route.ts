@@ -29,11 +29,11 @@ export async function PUT(request: Request) {
   }
 
   const body = await request.json();
-  const { full_name, visa_status } = body;
+  const { full_name, visa_status, opt_end_date } = body;
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .update({ full_name, visa_status })
+    .update({ full_name, visa_status, opt_end_date })
     .eq("id", user.id)
     .select()
     .single();
