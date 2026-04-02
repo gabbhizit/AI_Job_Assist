@@ -4,6 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import { UploadForm } from "@/components/resume/upload-form";
 import { ParsedEditor } from "@/components/resume/parsed-editor";
 import { ConfidenceBanner } from "@/components/resume/confidence-banner";
+import { AtsScore } from "@/components/resume/ats-score";
+import { SkillsGap } from "@/components/resume/skills-gap";
+import { TailoredVersions } from "@/components/resume/tailored-versions";
 import type { ParsedResume } from "@/lib/supabase/types";
 
 interface ResumeData {
@@ -101,6 +104,10 @@ export default function ResumePage() {
           initialData={resume.parsed_data}
           onSave={handleSave}
         />
+        {/* Phase 5 enhancements — only shown when resume is parsed */}
+        <AtsScore resume={resume.parsed_data} />
+        <SkillsGap resume={resume.parsed_data} />
+        <TailoredVersions />
         <div className="pt-4 border-t">
           <h2 className="text-lg font-semibold mb-3">Upload New Resume</h2>
           <UploadForm onUploadComplete={handleUploadComplete} />
