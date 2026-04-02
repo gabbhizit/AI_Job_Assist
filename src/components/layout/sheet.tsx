@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 interface SheetProps {
@@ -13,6 +14,11 @@ interface SheetProps {
 
 export function Sheet({ isOpen, onClose, title, width = "420px", children }: SheetProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -23,10 +29,10 @@ export function Sheet({ isOpen, onClose, title, width = "420px", children }: She
     return () => document.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex">
+  return createPortal(
+    <div className="fixed inset-0 z-[999] flex">
       {/* Overlay */}
       <div
         className="flex-1 bg-black/50 backdrop-blur-[3px]"
@@ -53,6 +59,7 @@ export function Sheet({ isOpen, onClose, title, width = "420px", children }: She
         )}
         <div className="flex-1 overflow-y-auto">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
