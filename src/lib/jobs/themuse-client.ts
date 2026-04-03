@@ -60,7 +60,14 @@ const MUSE_CATEGORIES = [
   "Data Science",
   "DevOps / SysAdmin",
   "Machine Learning",
+  "Data and Analytics",
+  "Product Management",
+  "IT",
+  "QA",
+  "Computer and IT",
 ];
+
+const MUSE_PAGES = process.env.NODE_ENV === "production" ? 3 : 1;
 
 export async function fetchTheMuseJobs(): Promise<NormalizedJob[]> {
   const apiKey = process.env.THE_MUSE_API_KEY;
@@ -88,23 +95,35 @@ async function fetchMuseCategory(
   category: string,
   apiKey?: string
 ): Promise<NormalizedJob[]> {
-  const params = new URLSearchParams({
-    category,
-    location: "United States",
-    page: "1",
-    ...(apiKey ? { api_key: apiKey } : {}),
-  });
+  const allJobs: NormalizedJob[] = [];
 
-  const response = await fetch(
-    `https://www.themuse.com/api/public/jobs?${params.toString()}`
-  );
+  for (let page = 1; page <= MUSE_PAGES; page++) {
+    const params = new URLSearchParams({
+      category,
+      location: "United States",
+      page: String(page),
+      ...(apiKey ? { api_key: apiKey } : {}),
+    });
 
-  if (!response.ok) {
-    throw new Error(`The Muse API error: ${response.status} ${response.statusText}`);
+    const response = await fetch(
+      `https://www.themuse.com/api/public/jobs?${params.toString()}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`The Muse API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data: MuseResponse = await response.json();
+    const results = data.results || [];
+    allJobs.push(...results.map((job) => normalizeMuseJob(job)));
+
+    // Stop if we've reached the last page
+    if (page >= data.page_count || results.length === 0) break;
+
+    await new Promise((r) => setTimeout(r, 300));
   }
 
-  const data: MuseResponse = await response.json();
-  return (data.results || []).map((job) => normalizeMuseJob(job));
+  return allJobs;
 }
 
 function normalizeMuseJob(job: MuseJob): NormalizedJob {

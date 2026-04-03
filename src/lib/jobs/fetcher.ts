@@ -2,6 +2,8 @@ import { fetchJSearchJobs, type NormalizedJob } from "./jsearch-client";
 import { fetchAdzunaJobs } from "./adzuna-client";
 import { fetchSerpAPIJobs } from "./serpapi-client";
 import { fetchTheMuseJobs } from "./themuse-client";
+import { fetchRemoteOKJobs } from "./remoteok-client";
+import { fetchJobicyJobs } from "./jobicy-client";
 import { filterJob } from "./job-filter";
 import { extractSkills } from "./skills-dictionary";
 import { getSearchParams } from "./search-params";
@@ -20,10 +22,12 @@ export interface FetchResult {
   queriesUsed: string[];
   locationsUsed: string[];
   sources: {
-    serpapi: SourceStats;
-    adzuna: SourceStats;
-    themuse: SourceStats;
-    jsearch: SourceStats;
+    serpapi:  SourceStats;
+    adzuna:   SourceStats;
+    themuse:  SourceStats;
+    jsearch:  SourceStats;
+    remoteok: SourceStats;
+    jobicy:   SourceStats;
   };
 }
 
@@ -39,10 +43,12 @@ export async function fetchAndFilterJobs(
     queriesUsed: [],
     locationsUsed: [],
     sources: {
-      serpapi: { fetched: 0, errors: [] },
-      adzuna:  { fetched: 0, errors: [] },
-      themuse: { fetched: 0, errors: [] },
-      jsearch: { fetched: 0, errors: [] },
+      serpapi:  { fetched: 0, errors: [] },
+      adzuna:   { fetched: 0, errors: [] },
+      themuse:  { fetched: 0, errors: [] },
+      jsearch:  { fetched: 0, errors: [] },
+      remoteok: { fetched: 0, errors: [] },
+      jobicy:   { fetched: 0, errors: [] },
     },
   };
   const allJobs: NormalizedJob[] = [];
@@ -75,18 +81,23 @@ export async function fetchAndFilterJobs(
 
   // ── Secondary: Adzuna ─────────────────────────────────────────────────────
   if (process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY) {
+    const ADZUNA_PAGES = process.env.NODE_ENV === "production" ? 3 : 1;
     for (const query of queries) {
-      try {
-        const jobs = await fetchAdzunaJobs(query, "US");
-        allJobs.push(...jobs);
-        result.fetched += jobs.length;
-        result.sources.adzuna.fetched += jobs.length;
-      } catch (error) {
-        const msg = `[${query}]: ${error instanceof Error ? error.message : "Unknown error"}`;
-        result.sources.adzuna.errors.push(msg);
-        result.errors.push(`Adzuna ${msg}`);
+      for (let page = 1; page <= ADZUNA_PAGES; page++) {
+        try {
+          const jobs = await fetchAdzunaJobs(query, "US", page);
+          allJobs.push(...jobs);
+          result.fetched += jobs.length;
+          result.sources.adzuna.fetched += jobs.length;
+          if (jobs.length < 20) break; // sparse page means we've hit the end
+        } catch (error) {
+          const msg = `[${query}][page ${page}]: ${error instanceof Error ? error.message : "Unknown error"}`;
+          result.sources.adzuna.errors.push(msg);
+          result.errors.push(`Adzuna ${msg}`);
+          break; // don't attempt further pages on error
+        }
+        await new Promise((r) => setTimeout(r, 200));
       }
-      await new Promise((r) => setTimeout(r, 200));
     }
   } else {
     result.sources.adzuna.errors.push("ADZUNA_APP_ID / ADZUNA_APP_KEY not configured");
@@ -106,23 +117,52 @@ export async function fetchAndFilterJobs(
 
   // ── Fallback: JSearch (if RAPIDAPI_KEY is set) ────────────────────────────
   if (process.env.RAPIDAPI_KEY) {
+    const JSEARCH_PAGES = process.env.NODE_ENV === "production" ? 2 : 1;
     for (const query of queries) {
       for (const location of locations) {
-        try {
-          const jobs = await fetchJSearchJobs(query, location);
-          allJobs.push(...jobs);
-          result.fetched += jobs.length;
-          result.sources.jsearch.fetched += jobs.length;
-        } catch (error) {
-          const msg = `[${query}][${location}]: ${error instanceof Error ? error.message : "Unknown error"}`;
-          result.sources.jsearch.errors.push(msg);
-          result.errors.push(`JSearch ${msg}`);
+        for (let page = 1; page <= JSEARCH_PAGES; page++) {
+          try {
+            const jobs = await fetchJSearchJobs(query, location, page);
+            allJobs.push(...jobs);
+            result.fetched += jobs.length;
+            result.sources.jsearch.fetched += jobs.length;
+            if (jobs.length < 10) break; // sparse page — stop early
+          } catch (error) {
+            const msg = `[${query}][${location}][page ${page}]: ${error instanceof Error ? error.message : "Unknown error"}`;
+            result.sources.jsearch.errors.push(msg);
+            result.errors.push(`JSearch ${msg}`);
+            break;
+          }
+          await new Promise((r) => setTimeout(r, 200));
         }
-        await new Promise((r) => setTimeout(r, 200));
       }
     }
   } else {
     result.sources.jsearch.errors.push("RAPIDAPI_KEY not configured (JSearch disabled)");
+  }
+
+  // ── Free: RemoteOK ────────────────────────────────────────────────────────
+  try {
+    const jobs = await fetchRemoteOKJobs();
+    allJobs.push(...jobs);
+    result.fetched += jobs.length;
+    result.sources.remoteok.fetched += jobs.length;
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    result.sources.remoteok.errors.push(msg);
+    result.errors.push(`RemoteOK: ${msg}`);
+  }
+
+  // ── Free: Jobicy ──────────────────────────────────────────────────────────
+  try {
+    const jobs = await fetchJobicyJobs();
+    allJobs.push(...jobs);
+    result.fetched += jobs.length;
+    result.sources.jobicy.fetched += jobs.length;
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    result.sources.jobicy.errors.push(msg);
+    result.errors.push(`Jobicy: ${msg}`);
   }
 
   // ── Build sponsor + E-Verify lookup map ──────────────────────────────────
@@ -139,8 +179,20 @@ export async function fetchAndFilterJobs(
     }
   }
 
+  // ── Cross-source dedup (title+company key, first-seen wins) ──────────────
+  const dedupSeen = new Set<string>();
+  const dedupedJobs = allJobs.filter((job) => {
+    const key =
+      job.title.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim() +
+      "|" +
+      job.company.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+    if (dedupSeen.has(key)) return false;
+    dedupSeen.add(key);
+    return true;
+  });
+
   // ── Filter and store ──────────────────────────────────────────────────────
-  for (const job of allJobs) {
+  for (const job of dedupedJobs) {
     const filterResult = filterJob(job);
     if (!filterResult.pass) {
       result.filtered++;

@@ -59,6 +59,10 @@ export function hardReject(job: RawJob): string | null {
     return "missing_or_short_description";
   }
 
+  if (!job.application_url || job.application_url.trim() === "") {
+    return "missing_application_url";
+  }
+
   const titleLower = job.title.toLowerCase();
   for (const keyword of IRRELEVANT_TITLE_KEYWORDS) {
     if (titleLower.includes(keyword)) {

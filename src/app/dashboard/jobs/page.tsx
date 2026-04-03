@@ -4,6 +4,14 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { Search, SlidersHorizontal, X, ChevronDown, Check } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { ScoreBreakdown } from "@/lib/supabase/types";
 import { JobListItem, type MatchedJob } from "@/components/jobs/job-list-item";
 import { JobDetailPanel } from "@/components/jobs/job-detail-panel";
@@ -91,6 +99,7 @@ export default function JobsPage() {
   // Modals
   const [sharingJob, setSharingJob] = useState<MatchedJob | null>(null);
   const [reportingJob, setReportingJob] = useState<MatchedJob | null>(null);
+  const [pendingApplyJob, setPendingApplyJob] = useState<MatchedJob | null>(null);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
@@ -191,26 +200,30 @@ export default function JobsPage() {
     [savedJobIds, forYouJobs, savedJobs]
   );
 
-  const handleApply = useCallback(
-    async (job: MatchedJob) => {
-      if (job.applicationUrl) window.open(job.applicationUrl, "_blank");
+  const handleApply = useCallback((job: MatchedJob) => {
+    if (job.applicationUrl) window.open(job.applicationUrl, "_blank");
+    setPendingApplyJob(job);
+  }, []);
 
-      // Mark as applied — optimistic remove from For You
-      setForYouJobs((prev) => prev.filter((j) => j.jobId !== job.jobId));
-      setSavedJobs((prev) => prev.filter((j) => j.jobId !== job.jobId));
+  const confirmApply = useCallback(async () => {
+    if (!pendingApplyJob) return;
+    const job = pendingApplyJob;
+    setPendingApplyJob(null);
 
-      // Move selectedId to next job
-      const remaining = visibleJobs.filter((j) => j.jobId !== job.jobId);
-      if (remaining.length > 0) setSelectedId(remaining[0].jobId);
+    setForYouJobs((prev) => prev.filter((j) => j.jobId !== job.jobId));
+    setSavedJobs((prev) => prev.filter((j) => j.jobId !== job.jobId));
 
-      await fetch(`/api/jobs/${job.jobId}/action`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "apply" }),
-      });
-    },
-    [visibleJobs]
-  );
+    const remaining = visibleJobs.filter((j) => j.jobId !== job.jobId);
+    if (remaining.length > 0) setSelectedId(remaining[0].jobId);
+
+    await fetch(`/api/jobs/${job.jobId}/action`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "apply" }),
+    });
+  }, [pendingApplyJob, visibleJobs]);
+
+  const cancelApply = useCallback(() => setPendingApplyJob(null), []);
 
   const handleSkip = useCallback(
     async (job: MatchedJob) => {
@@ -599,6 +612,26 @@ export default function JobsPage() {
           onClose={() => setReportingJob(null)}
         />
       )}
+
+      {/* Apply confirmation dialog */}
+      <Dialog open={pendingApplyJob !== null} onOpenChange={(open) => { if (!open) cancelApply(); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Did you apply?</DialogTitle>
+            <DialogDescription>
+              Did you complete your application for{" "}
+              <strong>{pendingApplyJob?.title}</strong> at{" "}
+              <strong>{pendingApplyJob?.company}</strong>?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={cancelApply}>
+              Not yet
+            </Button>
+            <Button onClick={confirmApply}>Yes, I applied</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
