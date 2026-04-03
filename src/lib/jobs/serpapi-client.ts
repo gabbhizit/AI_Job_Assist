@@ -108,7 +108,7 @@ function inferExperience(title: string, description: string): string | null {
   return null;
 }
 
-const SERPAPI_PAGES = process.env.NODE_ENV === "production" ? 3 : 2;
+const SERPAPI_PAGES = process.env.NODE_ENV === "production" ? 4 : 2;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
