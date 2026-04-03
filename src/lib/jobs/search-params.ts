@@ -12,6 +12,12 @@ export const DEFAULT_QUERIES = [
   "devops engineer",
   "software developer",
   "new grad software engineer",
+  "full stack engineer",
+  "site reliability engineer",
+  "cloud engineer",
+  "data scientist",
+  "platform engineer",
+  "security engineer",
 ];
 
 export const DEFAULT_LOCATIONS = [
@@ -19,11 +25,15 @@ export const DEFAULT_LOCATIONS = [
   "San Francisco, CA",
   "New York, NY",
   "Seattle, WA",
+  "Austin, TX",
+  "Boston, MA",
+  "Chicago, IL",
+  "Los Angeles, CA",
 ];
 
 // Cap query/location counts to control API call volume
-const MAX_QUERIES = process.env.NODE_ENV === "production" ? 15 : 3;
-const MAX_LOCATIONS = process.env.NODE_ENV === "production" ? 8 : 1;
+const MAX_QUERIES = process.env.NODE_ENV === "production" ? 20 : 3;
+const MAX_LOCATIONS = process.env.NODE_ENV === "production" ? 10 : 1;
 
 interface ResumeCompactSummary {
   inferred_roles: string[];
@@ -128,7 +138,7 @@ Rules:
 - Roles should be job titles suitable as search queries (e.g. "software engineer", "ml engineer", "data scientist")
 - Locations should be US cities (e.g. "San Francisco, CA") or "United States". Do NOT include "Remote".
 - Deduplicate and normalize similar roles (e.g. "SWE" → "software engineer")
-- Max 15 roles, max 8 locations. Always include "United States".
+- Max 20 roles, max 10 locations. Always include "United States".
 
 Return ONLY valid JSON with no explanation: { "roles": string[], "locations": string[] }`;
 
@@ -164,7 +174,7 @@ Rules:
 - Roles should be job titles suitable as search queries (e.g. "software engineer", "ml engineer")
 - Locations should be US cities (e.g. "San Francisco, CA") or "United States". Do NOT include "Remote".
 - Deduplicate and normalize. Keep existing items unless the new resume clearly supersedes them.
-- Max 15 roles, max 8 locations. Always include "United States".
+- Max 20 roles, max 10 locations. Always include "United States".
 
 Return ONLY valid JSON with no explanation: { "roles": string[], "locations": string[] }`;
 

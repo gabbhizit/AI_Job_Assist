@@ -1,5 +1,5 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { fetchAndFilterJobs, cleanupStaleJobs } from "@/lib/jobs/fetcher";
+import { cleanupStaleJobs } from "@/lib/jobs/fetcher";
 import { matchJobsForUser } from "@/lib/matching/scorer";
 import { createPipelineLog } from "@/lib/utils/pipeline-logger";
 import { syncGmailForUser } from "@/lib/gmail/sync";
@@ -18,21 +18,8 @@ export async function POST(request: Request) {
   const supabase = await createServiceRoleClient();
   const log = createPipelineLog();
 
-  // Step 1: Fetch jobs
-  log.step("fetch");
-  try {
-    const result = await fetchAndFilterJobs(supabase);
-    log.success("fetch", {
-      fetched: result.fetched,
-      filtered: result.filtered,
-      stored: result.stored,
-      errors: result.errors.length,
-    });
-  } catch (e) {
-    log.error("fetch", e);
-  }
-
-  // Step 2: Match jobs to users
+  // Step 1: Match jobs to users
+  // Note: job fetching runs separately via /api/cron/fetch-jobs (scheduled 1h before)
   log.step("match");
   try {
     const { data: users } = await supabase
