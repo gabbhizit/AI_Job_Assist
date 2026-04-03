@@ -7,7 +7,7 @@ const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: "AI Job Copilot",
-  description: "AI-powered job matching for CS students",
+  description: "AI-powered job matching for students",
 };
 
 export default function RootLayout({
