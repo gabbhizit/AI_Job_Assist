@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 
 interface UploadFormProps {
   onUploadComplete: (data: {
@@ -75,69 +73,74 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
   );
 
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <div
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-            isDragging
-              ? "border-primary bg-primary/5"
-              : "border-border hover:border-primary/50"
-          }`}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setIsDragging(true);
-          }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
+    <div className="bg-white border border-[#e8e8e8] rounded-[10px] p-5">
+      <div
+        className={`border-2 border-dashed rounded-[10px] p-8 text-center transition-colors ${
+          isDragging
+            ? "border-[#6366f1] bg-[#6366f110]"
+            : "border-[#e8e8e8] hover:border-[#6366f180]"
+        }`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+      >
+        <svg
+          className="mx-auto h-12 w-12 mb-4"
+          style={{ color: "#cccccc" }}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          strokeWidth={1}
         >
-          <svg
-            className="mx-auto h-12 w-12 text-muted-foreground mb-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            strokeWidth={1}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
+          />
+        </svg>
+        <p style={{ fontSize: "15px", fontWeight: 500, color: "#111111", marginBottom: "4px" }}>
+          {isUploading ? "Parsing your resume..." : "Drop your resume here"}
+        </p>
+        <p className="mb-4" style={{ fontSize: "13px", color: "#888888" }}>
+          PDF only, max 5MB
+        </p>
+
+        {!isUploading && (
+          <label className="cursor-pointer">
+            <span
+              className="inline-flex items-center justify-center rounded-[8px] border border-[#e8e8e8] bg-white hover:bg-[#f5f5f5] transition-colors cursor-pointer"
+              style={{ fontSize: "13px", fontWeight: 500, color: "#555555", padding: "6px 16px" }}
+            >
+              Browse Files
+            </span>
+            <input
+              type="file"
+              accept=".pdf"
+              className="hidden"
+              onChange={handleFileSelect}
             />
-          </svg>
-          <p className="text-lg font-medium mb-1">
-            {isUploading ? "Parsing your resume..." : "Drop your resume here"}
-          </p>
-          <p className="text-sm text-muted-foreground mb-4">
-            PDF only, max 5MB
-          </p>
+          </label>
+        )}
 
-          {!isUploading && (
-            <label className="cursor-pointer">
-              <span className="inline-flex shrink-0 items-center justify-center rounded-lg border border-border bg-background px-2.5 h-8 text-sm font-medium hover:bg-muted hover:text-foreground cursor-pointer">
-                Browse Files
-              </span>
-              <input
-                type="file"
-                accept=".pdf"
-                className="hidden"
-                onChange={handleFileSelect}
-              />
-            </label>
-          )}
-
-          {isUploading && (
-            <div className="flex items-center justify-center gap-2 text-muted-foreground">
-              <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              <span>Extracting skills and experience...</span>
-            </div>
-          )}
-        </div>
-
-        {error && (
-          <div className="mt-4 p-3 bg-destructive/10 text-destructive text-sm rounded-md">
-            {error}
+        {isUploading && (
+          <div className="flex items-center justify-center gap-2" style={{ color: "#888888" }}>
+            <div className="h-4 w-4 border-2 border-[#6366f1] border-t-transparent rounded-full animate-spin" />
+            <span style={{ fontSize: "13px" }}>Extracting skills and experience...</span>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+
+      {error && (
+        <div
+          className="mt-4 p-3 text-sm rounded-[8px]"
+          style={{ background: "#dc262610", color: "#dc2626" }}
+        >
+          {error}
+        </div>
+      )}
+    </div>
   );
 }

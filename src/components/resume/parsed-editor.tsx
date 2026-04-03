@@ -1,13 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import type { ParsedResume } from "@/lib/supabase/types";
 
 interface ParsedEditorProps {
@@ -15,6 +10,22 @@ interface ParsedEditorProps {
   initialData: ParsedResume;
   onSave: () => void;
 }
+
+const sectionTitle: React.CSSProperties = {
+  fontSize: "14px",
+  fontWeight: 600,
+  color: "#111111",
+  marginBottom: "16px",
+  paddingBottom: "12px",
+  borderBottom: "1px solid #f0f0f0",
+};
+
+const fieldLabel: React.CSSProperties = {
+  fontSize: "12px",
+  fontWeight: 500,
+  color: "#888888",
+  marginBottom: "4px",
+};
 
 export function ParsedEditor({ resumeId, initialData, onSave }: ParsedEditorProps) {
   const [data, setData] = useState<ParsedResume>(initialData);
@@ -75,23 +86,21 @@ export function ParsedEditor({ resumeId, initialData, onSave }: ParsedEditorProp
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Basic Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Basic Information</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div className="bg-white border border-[#e8e8e8] rounded-[10px] p-5">
+        <div style={sectionTitle}>Basic Information</div>
+        <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Name</Label>
+              <p style={fieldLabel}>Name</p>
               <Input
                 value={data.name || ""}
                 onChange={(e) => setData({ ...data, name: e.target.value })}
               />
             </div>
             <div>
-              <Label>Email</Label>
+              <p style={fieldLabel}>Email</p>
               <Input
                 value={data.email || ""}
                 onChange={(e) => setData({ ...data, email: e.target.value })}
@@ -99,92 +108,92 @@ export function ParsedEditor({ resumeId, initialData, onSave }: ParsedEditorProp
             </div>
           </div>
           <div>
-            <Label>Summary</Label>
+            <p style={fieldLabel}>Summary</p>
             <Textarea
               value={data.summary || ""}
               onChange={(e) => setData({ ...data, summary: e.target.value })}
               rows={3}
             />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Skills */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Skills</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {data.skills_flat.map((skill) => (
-              <Badge
-                key={skill}
-                variant="secondary"
-                className="cursor-pointer hover:bg-destructive/20"
-                onClick={() => removeSkill(skill)}
-              >
-                {skill} &times;
-              </Badge>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Add a skill..."
-              value={skillInput}
-              onChange={(e) => setSkillInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSkill())}
-            />
-            <Button variant="outline" onClick={addSkill}>
-              Add
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="bg-white border border-[#e8e8e8] rounded-[10px] p-5">
+        <div style={sectionTitle}>Skills</div>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {data.skills_flat.map((skill) => (
+            <span
+              key={skill}
+              className="inline-flex items-center gap-1 rounded-full cursor-pointer hover:bg-[#ececec] transition-colors"
+              style={{ fontSize: "12px", background: "#f5f5f5", border: "1px solid #e8e8e8", padding: "3px 10px", color: "#555555" }}
+              onClick={() => removeSkill(skill)}
+            >
+              {skill}
+              <span style={{ fontSize: "14px", color: "#aaaaaa", lineHeight: 1 }}>&times;</span>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Input
+            placeholder="Add a skill..."
+            value={skillInput}
+            onChange={(e) => setSkillInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSkill())}
+          />
+          <button
+            onClick={addSkill}
+            className="flex-shrink-0 border border-[#e8e8e8] rounded-[8px] hover:bg-[#f5f5f5] transition-colors"
+            style={{ fontSize: "13px", fontWeight: 500, color: "#555555", padding: "0 14px" }}
+          >
+            Add
+          </button>
+        </div>
+      </div>
 
       {/* Target Roles */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Target Roles</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {data.target_roles_inferred.map((role) => (
-              <Badge
-                key={role}
-                variant="outline"
-                className="cursor-pointer hover:bg-destructive/20"
-                onClick={() => removeRole(role)}
-              >
-                {role} &times;
-              </Badge>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Add a target role..."
-              value={roleInput}
-              onChange={(e) => setRoleInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addRole())}
-            />
-            <Button variant="outline" onClick={addRole}>
-              Add
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="bg-white border border-[#e8e8e8] rounded-[10px] p-5">
+        <div style={sectionTitle}>Target Roles</div>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {data.target_roles_inferred.map((role) => (
+            <span
+              key={role}
+              className="inline-flex items-center gap-1 rounded-full cursor-pointer hover:bg-[#ececec] transition-colors"
+              style={{ fontSize: "12px", background: "#f5f5f5", border: "1px solid #e8e8e8", padding: "3px 10px", color: "#555555" }}
+              onClick={() => removeRole(role)}
+            >
+              {role}
+              <span style={{ fontSize: "14px", color: "#aaaaaa", lineHeight: 1 }}>&times;</span>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Input
+            placeholder="Add a target role..."
+            value={roleInput}
+            onChange={(e) => setRoleInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addRole())}
+          />
+          <button
+            onClick={addRole}
+            className="flex-shrink-0 border border-[#e8e8e8] rounded-[8px] hover:bg-[#f5f5f5] transition-colors"
+            style={{ fontSize: "13px", fontWeight: 500, color: "#555555", padding: "0 14px" }}
+          >
+            Add
+          </button>
+        </div>
+      </div>
 
       {/* Experience */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Experience</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div className="bg-white border border-[#e8e8e8] rounded-[10px] p-5">
+        <div style={sectionTitle}>Experience</div>
+        <div className="space-y-4">
           {data.experience.map((exp, i) => (
             <div key={i}>
-              {i > 0 && <Separator className="mb-4" />}
+              {i > 0 && <div style={{ borderTop: "1px solid #f0f0f0", marginBottom: "16px" }} />}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Title</Label>
+                  <p style={fieldLabel}>Title</p>
                   <Input
                     value={exp.title ?? ""}
                     onChange={(e) => {
@@ -195,7 +204,7 @@ export function ParsedEditor({ resumeId, initialData, onSave }: ParsedEditorProp
                   />
                 </div>
                 <div>
-                  <Label>Company</Label>
+                  <p style={fieldLabel}>Company</p>
                   <Input
                     value={exp.company ?? ""}
                     onChange={(e) => {
@@ -206,8 +215,8 @@ export function ParsedEditor({ resumeId, initialData, onSave }: ParsedEditorProp
                   />
                 </div>
               </div>
-              <div className="mt-2">
-                <Label>Description</Label>
+              <div className="mt-3">
+                <p style={fieldLabel}>Description</p>
                 <Textarea
                   value={exp.description ?? ""}
                   onChange={(e) => {
@@ -221,43 +230,46 @@ export function ParsedEditor({ resumeId, initialData, onSave }: ParsedEditorProp
             </div>
           ))}
           {data.experience.length === 0 && (
-            <p className="text-sm text-muted-foreground">
+            <p style={{ fontSize: "13px", color: "#888888" }}>
               No experience entries found. This may affect matching quality.
             </p>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Education */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Education</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div className="bg-white border border-[#e8e8e8] rounded-[10px] p-5">
+        <div style={sectionTitle}>Education</div>
+        <div className="space-y-4">
           {data.education.map((edu, i) => (
             <div key={i} className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label>Institution</Label>
-                <Input value={edu.institution ?? ""} readOnly className="bg-muted" />
+                <p style={fieldLabel}>Institution</p>
+                <Input value={edu.institution ?? ""} readOnly className="bg-[#f7f8fc]" />
               </div>
               <div>
-                <Label>Degree</Label>
-                <Input value={edu.degree ?? ""} readOnly className="bg-muted" />
+                <p style={fieldLabel}>Degree</p>
+                <Input value={edu.degree ?? ""} readOnly className="bg-[#f7f8fc]" />
               </div>
               <div>
-                <Label>Field</Label>
-                <Input value={edu.field ?? ""} readOnly className="bg-muted" />
+                <p style={fieldLabel}>Field</p>
+                <Input value={edu.field ?? ""} readOnly className="bg-[#f7f8fc]" />
               </div>
             </div>
           ))}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Save */}
       <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={saving} size="lg">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="rounded-[8px] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+          style={{ fontSize: "13px", fontWeight: 500, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", padding: "9px 24px" }}
+        >
           {saving ? "Saving..." : "Save & Continue"}
-        </Button>
+        </button>
       </div>
     </div>
   );
