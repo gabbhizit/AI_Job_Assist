@@ -3,7 +3,8 @@ import { cleanupStaleJobs } from "@/lib/jobs/fetcher";
 import { matchJobsForUser } from "@/lib/matching/scorer";
 import { createPipelineLog } from "@/lib/utils/pipeline-logger";
 import { syncGmailForUser } from "@/lib/gmail/sync";
-import type { ParsedResume, Database } from "@/lib/supabase/types";
+import { sendDailyDigest } from "@/lib/email/digest";
+import type { ParsedResume, Database, ScoreBreakdown } from "@/lib/supabase/types";
 import { NextResponse } from "next/server";
 
 export const maxDuration = 60; // Vercel Pro: 60s max
@@ -59,24 +60,129 @@ export async function POST(request: Request) {
     log.error("match", e);
   }
 
-  // Step 3: Send notifications (mark as notified for now, email later)
+  // Step 3: Send daily digest emails
   log.step("notify");
   try {
-    // TODO: Integrate Resend for actual email sending
-    const { data: unnotified } = await supabase
+    // Get distinct users who have unnotified matches
+    const { data: unnotifiedRows } = await supabase
       .from("job_matches")
-      .select("id, user_id")
-      .eq("is_notified", false) as { data: { id: string; user_id: string }[] | null };
+      .select("user_id")
+      .eq("is_notified", false) as { data: { user_id: string }[] | null };
 
-    if (unnotified && unnotified.length > 0) {
-      for (const match of unnotified) {
-        await supabase.from("job_matches")
+    const uniqueUserIds = [...new Set((unnotifiedRows ?? []).map((r) => r.user_id))];
+    const isSunday = new Date().getUTCDay() === 0;
+    let emailsSent = 0;
+    let emailsFailed = 0;
+
+    for (const userId of uniqueUserIds) {
+      // Check notification preferences
+      const { data: prefs } = await supabase
+        .from("user_preferences")
+        .select("notify_email, notify_frequency")
+        .eq("user_id", userId)
+        .single() as { data: { notify_email: boolean; notify_frequency: "daily" | "weekly" } | null };
+
+      // Mark notified (suppress delivery) if user opted out — prevents unbounded accumulation
+      if (!prefs?.notify_email) {
+        await supabase
+          .from("job_matches")
           .update({ is_notified: true })
-          .eq("id", match.id);
+          .eq("user_id", userId)
+          .eq("is_notified", false);
+        continue;
+      }
+
+      // Respect frequency: weekly users only get emails on Sunday
+      if (prefs.notify_frequency === "weekly" && !isSunday) continue;
+
+      // Get user email + name
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("email, full_name")
+        .eq("id", userId)
+        .single() as { data: { email: string; full_name: string } | null };
+
+      if (!profile?.email) continue;
+
+      // Fetch top 5 unnotified matches with job details
+      const { data: matches } = await supabase
+        .from("job_matches")
+        .select(`
+          id,
+          job_id,
+          score,
+          score_breakdown,
+          jobs (
+            title,
+            company,
+            location,
+            is_remote,
+            salary_min,
+            salary_max
+          )
+        `)
+        .eq("user_id", userId)
+        .eq("is_notified", false)
+        .order("score", { ascending: false })
+        .limit(5) as {
+          data: {
+            id: string;
+            job_id: string;
+            score: number;
+            score_breakdown: ScoreBreakdown;
+            jobs: {
+              title: string;
+              company: string;
+              location: string | null;
+              is_remote: boolean;
+              salary_min: number | null;
+              salary_max: number | null;
+            } | null;
+          }[] | null;
+        };
+
+      if (!matches || matches.length === 0) continue;
+
+      const digestJobs = matches
+        .filter((m) => m.jobs !== null)
+        .map((m) => ({
+          jobId: m.job_id,
+          title: m.jobs!.title,
+          company: m.jobs!.company,
+          location: m.jobs!.location,
+          isRemote: m.jobs!.is_remote,
+          salaryMin: m.jobs!.salary_min,
+          salaryMax: m.jobs!.salary_max,
+          score: m.score,
+          isH1bSponsor: m.score_breakdown?.is_h1b_sponsor ?? false,
+          explanation: m.score_breakdown?.explanation ?? "Strong match for your profile.",
+        }));
+
+      const { success, error: sendError } = await sendDailyDigest({
+        toEmail: profile.email,
+        userName: profile.full_name,
+        jobs: digestJobs,
+      });
+
+      if (success) {
+        // Mark all this user's unnotified matches as notified
+        await supabase
+          .from("job_matches")
+          .update({ is_notified: true })
+          .eq("user_id", userId)
+          .eq("is_notified", false);
+        emailsSent++;
+      } else {
+        console.error(`Digest send failed for user ${userId}:`, sendError);
+        emailsFailed++;
       }
     }
 
-    log.success("notify", { emailsSent: 0, matchesNotified: unnotified?.length ?? 0 });
+    log.success("notify", {
+      usersProcessed: uniqueUserIds.length,
+      emailsSent,
+      emailsFailed,
+    });
   } catch (e) {
     log.error("notify", e);
   }

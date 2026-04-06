@@ -16,24 +16,40 @@ export default function PreferencesPage() {
     remote_preference: "any" as string,
     notify_email: true,
   });
+  const [optEndDate, setOptEndDate] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [roleInput, setRoleInput] = useState("");
   const [locationInput, setLocationInput] = useState("");
 
   const fetchPrefs = useCallback(async () => {
-    const response = await fetch("/api/preferences");
-    const data = await response.json();
-    if (data.preferences) {
-      setPrefs({
-        target_roles: data.preferences.target_roles || [],
-        target_locations: data.preferences.target_locations || [],
-        min_salary: data.preferences.min_salary,
-        experience_level: data.preferences.experience_level || "entry",
-        remote_preference: data.preferences.remote_preference || "any",
-        notify_email: data.preferences.notify_email ?? true,
-      });
+    try {
+      const [prefsRes, profileRes] = await Promise.all([
+        fetch("/api/preferences"),
+        fetch("/api/profile"),
+      ]);
+      const [prefsData, profileData] = await Promise.all([
+        prefsRes.json(),
+        profileRes.json(),
+      ]);
+      if (prefsData.preferences) {
+        setPrefs({
+          target_roles: prefsData.preferences.target_roles || [],
+          target_locations: prefsData.preferences.target_locations || [],
+          min_salary: prefsData.preferences.min_salary,
+          experience_level: prefsData.preferences.experience_level || "entry",
+          remote_preference: prefsData.preferences.remote_preference || "any",
+          notify_email: prefsData.preferences.notify_email ?? true,
+        });
+      }
+      if (profileData.profile?.opt_end_date) {
+        // Store as YYYY-MM-DD for the date input
+        setOptEndDate(profileData.profile.opt_end_date.slice(0, 10));
+      }
+    } catch {
+      setError("Failed to load preferences. Please refresh.");
     }
     setLoading(false);
   }, []);
@@ -45,14 +61,29 @@ export default function PreferencesPage() {
   const handleSave = async () => {
     setSaving(true);
     setSaved(false);
-    await fetch("/api/preferences", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(prefs),
-    });
+    setError(null);
+    try {
+      const [prefsRes, profileRes] = await Promise.all([
+        fetch("/api/preferences", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(prefs),
+        }),
+        fetch("/api/profile", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ opt_end_date: optEndDate || null }),
+        }),
+      ]);
+      if (!prefsRes.ok || !profileRes.ok) {
+        throw new Error("Save failed");
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setError("Failed to save preferences. Please try again.");
+    }
     setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
   };
 
   const addItem = (field: "target_roles" | "target_locations", value: string) => {
@@ -211,6 +242,18 @@ export default function PreferencesPage() {
               <option value="onsite">On-site</option>
             </select>
           </div>
+          <div>
+            <Label htmlFor="opt_end_date">OPT End Date</Label>
+            <Input
+              id="opt_end_date"
+              type="date"
+              value={optEndDate}
+              onChange={(e) => setOptEndDate(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Used to power the OPT Countdown widget on your dashboard.
+            </p>
+          </div>
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -227,6 +270,10 @@ export default function PreferencesPage() {
           </div>
         </CardContent>
       </Card>
+
+      {error && (
+        <p className="text-sm text-red-600">{error}</p>
+      )}
 
       <div className="flex items-center gap-4">
         <Button onClick={handleSave} disabled={saving} size="lg">

@@ -43,10 +43,10 @@ const navItems = [
 ];
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
-export function Sidebar() {
+export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const pathname = usePathname();
   const router = useRouter();
-  const [healthScore, setHealthScore] = useState(75);
+  const [healthScore, setHealthScore] = useState<number | null>(null);
   const [openModal, setOpenModal] = useState<"profile" | "settings" | "upgrade" | null>(null);
 
   // Derive health score from avg match score
@@ -58,9 +58,11 @@ export function Sidebar() {
         if (matches.length > 0) {
           const avg = Math.round(matches.reduce((s: number, m: { score: number }) => s + m.score, 0) / matches.length);
           setHealthScore(Math.min(100, Math.round(50 + avg * 0.5)));
+        } else {
+          setHealthScore(0);
         }
       })
-      .catch(() => {/* keep default 75 */});
+      .catch(() => setHealthScore(0));
   }, []);
 
   const handleSignOut = async () => {
@@ -90,11 +92,11 @@ export function Sidebar() {
 
       {/* Health Score */}
       <div className="flex items-center gap-3 px-3 mb-5 pb-4 border-b border-[#f0f0f0]">
-        <ScoreRing score={healthScore} />
+        <ScoreRing score={healthScore ?? 0} />
         <div>
           <p style={{ fontSize: "11px", color: "#aaaaaa", lineHeight: 1 }}>Health Score</p>
           <p style={{ fontSize: "13px", color: "#111111", marginTop: "3px", lineHeight: 1, fontWeight: 600 }}>
-            {healthScore} / 100
+            {healthScore === null ? "…" : `${healthScore} / 100`}
           </p>
         </div>
       </div>
@@ -129,6 +131,7 @@ export function Sidebar() {
             <Link
               key={to}
               href={to}
+              onClick={onNavigate}
               className="flex items-center gap-3 px-3 py-2.5 rounded-[7px] transition-all"
               style={
                 isActive

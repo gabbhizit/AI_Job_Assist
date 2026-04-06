@@ -16,9 +16,21 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
   const handleUpload = useCallback(
     async (file: File) => {
       setError(null);
+
+      if (file.type !== "application/pdf") {
+        setError("Please upload a PDF file.");
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        setError("File is too large. Maximum size is 5MB.");
+        return;
+      }
+
       setIsUploading(true);
 
       try {
@@ -53,11 +65,7 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
       setIsDragging(false);
 
       const file = e.dataTransfer.files[0];
-      if (file && file.type === "application/pdf") {
-        handleUpload(file);
-      } else {
-        setError("Please upload a PDF file");
-      }
+      if (file) handleUpload(file);
     },
     [handleUpload]
   );

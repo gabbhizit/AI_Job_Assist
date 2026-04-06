@@ -40,6 +40,7 @@ interface JobListItemProps {
   isActive: boolean;
   isSaved: boolean;
   isApplied: boolean;
+  isLoading?: boolean;
   onSelect: () => void;
   onSave: (e: React.MouseEvent) => void;
   onQuickApply: (e: React.MouseEvent) => void;
@@ -81,6 +82,7 @@ export function JobListItem({
   isActive,
   isSaved,
   isApplied,
+  isLoading = false,
   onSelect,
   onSave,
   onQuickApply,
@@ -202,7 +204,11 @@ export function JobListItem({
 
       {/* Floating hover actions */}
       <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1.5">
-        {isApplied ? (
+        {isLoading ? (
+          <div className="w-8 h-8 rounded-[7px] flex items-center justify-center border border-[#e8e8e8] bg-white shadow-sm">
+            <div className="w-3 h-3 border-[1.5px] border-[#6366f1] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : isApplied ? (
           <div
             className="w-8 h-8 rounded-[7px] flex items-center justify-center border"
             style={{ background: "#16a34a10", borderColor: "#16a34a20" }}
@@ -221,7 +227,8 @@ export function JobListItem({
         )}
         <button
           onClick={onSave}
-          className={`w-8 h-8 rounded-[7px] flex items-center justify-center border transition-colors shadow-sm ${
+          disabled={isLoading}
+          className={`w-8 h-8 rounded-[7px] flex items-center justify-center border transition-colors shadow-sm disabled:opacity-50 ${
             isSaved
               ? "bg-[#6366f1]/10 border-[#6366f1]/20"
               : "bg-white border-[#e8e8e8] hover:border-[#d0d0d0]"

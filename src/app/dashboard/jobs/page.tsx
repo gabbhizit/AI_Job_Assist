@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import { Search, SlidersHorizontal, X, ChevronDown, Check } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -96,6 +97,9 @@ export default function JobsPage() {
   const [remoteOnly, setRemoteOnly] = useState(false);
   const [minScore, setMinScore] = useState(0);
 
+  // Tracks job IDs with an in-flight action (for loading state on buttons)
+  const [pendingJobIds, setPendingJobIds] = useState<Set<string>>(new Set());
+
   // Modals
   const [sharingJob, setSharingJob] = useState<MatchedJob | null>(null);
   const [reportingJob, setReportingJob] = useState<MatchedJob | null>(null);
@@ -110,6 +114,11 @@ export default function JobsPage() {
         fetch("/api/jobs/saved"),
         fetch("/api/resume"),
       ]);
+
+      if (!forYouRes.ok || !savedRes.ok) {
+        toast.error("Failed to load jobs. Please refresh.");
+      }
+
       const forYouData = await forYouRes.json();
       const savedData = await savedRes.json();
       const resumeData = await resumeRes.json();
@@ -130,6 +139,8 @@ export default function JobsPage() {
       if (firstList.length > 0 && !selectedId) {
         setSelectedId(firstList[0].jobId);
       }
+    } catch {
+      toast.error("Failed to load jobs. Please refresh.");
     } finally {
       setLoading(false);
     }
@@ -180,10 +191,12 @@ export default function JobsPage() {
   const handleSave = useCallback(
     async (jobId: string, e?: React.MouseEvent) => {
       e?.stopPropagation();
+      if (pendingJobIds.has(jobId)) return;
       const isSaved = savedJobIds.includes(jobId);
       const action = isSaved ? "unsave" : "save";
 
-      // Optimistic
+      // Optimistic update
+      const snapshot = savedJobs;
       if (isSaved) {
         setSavedJobs((prev) => prev.filter((j) => j.jobId !== jobId));
       } else {
@@ -191,13 +204,23 @@ export default function JobsPage() {
         if (job) setSavedJobs((prev) => [...prev, { ...job, userStatus: "saved" }]);
       }
 
-      await fetch(`/api/jobs/${jobId}/action`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
+      setPendingJobIds((s) => new Set(s).add(jobId));
+      try {
+        const res = await fetch(`/api/jobs/${jobId}/action`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action }),
+        });
+        if (!res.ok) throw new Error();
+      } catch {
+        // Rollback
+        setSavedJobs(snapshot);
+        toast.error("Failed to save job. Please try again.");
+      } finally {
+        setPendingJobIds((s) => { const n = new Set(s); n.delete(jobId); return n; });
+      }
     },
-    [savedJobIds, forYouJobs, savedJobs]
+    [pendingJobIds, savedJobIds, forYouJobs, savedJobs]
   );
 
   const handleApply = useCallback((job: MatchedJob) => {
@@ -210,34 +233,54 @@ export default function JobsPage() {
     const job = pendingApplyJob;
     setPendingApplyJob(null);
 
+    const fySnapshot = forYouJobs;
+    const svSnapshot = savedJobs;
     setForYouJobs((prev) => prev.filter((j) => j.jobId !== job.jobId));
     setSavedJobs((prev) => prev.filter((j) => j.jobId !== job.jobId));
 
     const remaining = visibleJobs.filter((j) => j.jobId !== job.jobId);
     if (remaining.length > 0) setSelectedId(remaining[0].jobId);
 
-    await fetch(`/api/jobs/${job.jobId}/action`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "apply" }),
-    });
-  }, [pendingApplyJob, visibleJobs]);
+    try {
+      const res = await fetch(`/api/jobs/${job.jobId}/action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "apply" }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setForYouJobs(fySnapshot);
+      setSavedJobs(svSnapshot);
+      toast.error("Failed to record application. Please try again.");
+    }
+  }, [pendingApplyJob, visibleJobs, forYouJobs, savedJobs]);
 
   const cancelApply = useCallback(() => setPendingApplyJob(null), []);
 
   const handleSkip = useCallback(
     async (job: MatchedJob) => {
+      if (pendingJobIds.has(job.jobId)) return;
+      const fySnapshot = forYouJobs;
       setForYouJobs((prev) => prev.filter((j) => j.jobId !== job.jobId));
       const remaining = visibleJobs.filter((j) => j.jobId !== job.jobId);
       if (remaining.length > 0) setSelectedId(remaining[0].jobId);
 
-      await fetch(`/api/jobs/${job.jobId}/action`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "dismiss" }),
-      });
+      setPendingJobIds((s) => new Set(s).add(job.jobId));
+      try {
+        const res = await fetch(`/api/jobs/${job.jobId}/action`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "dismiss" }),
+        });
+        if (!res.ok) throw new Error();
+      } catch {
+        setForYouJobs(fySnapshot);
+        toast.error("Failed to dismiss job. Please try again.");
+      } finally {
+        setPendingJobIds((s) => { const n = new Set(s); n.delete(job.jobId); return n; });
+      }
     },
-    [visibleJobs]
+    [pendingJobIds, forYouJobs, visibleJobs]
   );
 
   // ── No resume state ─────────────────────────────────────────────────────────
@@ -562,6 +605,7 @@ export default function JobsPage() {
                 isActive={selectedId === job.jobId}
                 isSaved={savedJobIds.includes(job.jobId)}
                 isApplied={job.userStatus === "applied"}
+                isLoading={pendingJobIds.has(job.jobId)}
                 onSelect={() => setSelectedId(job.jobId)}
                 onSave={(e) => handleSave(job.jobId, e)}
                 onQuickApply={(e) => {
@@ -582,6 +626,7 @@ export default function JobsPage() {
             job={selectedJob}
             userSkills={userSkills}
             isApplied={selectedJob.userStatus === "applied"}
+            isLoading={pendingJobIds.has(selectedJob.jobId)}
             onApply={() => handleApply(selectedJob)}
             onSkip={() => handleSkip(selectedJob)}
             onShare={() => setSharingJob(selectedJob)}

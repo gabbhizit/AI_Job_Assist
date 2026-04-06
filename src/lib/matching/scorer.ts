@@ -337,7 +337,26 @@ export async function matchJobsForUser(
   let matchCount = 0;
   const today = new Date().toISOString().split("T")[0];
 
+  // Pre-compute preference filters for the loop
+  const minSalary = userPrefs.min_salary ?? null;
+  const excludedCompaniesLower = (userPrefs.excluded_companies ?? []).map((c: string) =>
+    c.toLowerCase()
+  );
+
   for (const job of jobs) {
+    // Skip jobs that don't meet salary floor (if both job salary and user min are set)
+    if (minSalary !== null && job.salary_max !== null && job.salary_max < minSalary) {
+      continue;
+    }
+
+    // Skip excluded companies
+    if (
+      excludedCompaniesLower.length > 0 &&
+      excludedCompaniesLower.some((ex: string) => job.company.toLowerCase().includes(ex))
+    ) {
+      continue;
+    }
+
     const breakdown = await computeMatchScore(resume, userPrefs, job, supabase);
     if (!breakdown) continue;
 

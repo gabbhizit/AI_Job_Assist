@@ -283,7 +283,7 @@ export default function DashboardPage() {
             Search Health Score
           </p>
           <div className="flex items-center gap-8">
-            <HealthGauge score={loading ? 75 : healthScore} />
+            <HealthGauge score={loading ? 0 : healthScore} />
             <div className="flex-1">
               <p style={{ fontSize: "13px", color: "#555555", lineHeight: 1.7 }}>
                 Your score is{" "}

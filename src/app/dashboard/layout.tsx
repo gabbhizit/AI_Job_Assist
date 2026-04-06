@@ -1,4 +1,6 @@
 import { Sidebar } from "@/components/layout/sidebar";
+import { MobileNav } from "@/components/layout/mobile-nav";
+import { Toaster } from "sonner";
 
 export default function DashboardLayout({
   children,
@@ -7,8 +9,12 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="flex h-screen w-full overflow-hidden" style={{ background: "#f7f8fc" }}>
+      {/* Desktop sidebar */}
       <Sidebar />
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      {/* Mobile top bar + slide-in sidebar */}
+      <MobileNav />
+      <main className="flex-1 overflow-y-auto pt-12 md:pt-0">{children}</main>
+      <Toaster position="bottom-right" richColors closeButton />
     </div>
   );
 }

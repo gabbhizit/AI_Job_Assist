@@ -7,6 +7,7 @@ interface JobDetailPanelProps {
   job: MatchedJob;
   userSkills: string[];
   isApplied: boolean;
+  isLoading?: boolean;
   onApply: () => void;
   onSkip: () => void;
   onShare: () => void;
@@ -49,6 +50,7 @@ export function JobDetailPanel({
   job,
   userSkills,
   isApplied,
+  isLoading = false,
   onApply,
   onSkip,
   onShare,
@@ -453,14 +455,20 @@ export function JobDetailPanel({
           ) : (
             <button
               onClick={onApply}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-[8px] text-white hover:opacity-90 transition-opacity shadow-md"
+              disabled={isLoading}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-[8px] text-white hover:opacity-90 transition-opacity shadow-md disabled:opacity-60"
               style={{
                 fontSize: "13px",
                 fontWeight: 500,
                 background: "linear-gradient(135deg, #111111, #333333)",
               }}
             >
-              <SendHorizonal size={14} /> Apply now
+              {isLoading ? (
+                <div className="w-3.5 h-3.5 border-[1.5px] border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <SendHorizonal size={14} />
+              )}
+              {isLoading ? "Saving…" : "Apply now"}
             </button>
           )}
 
@@ -474,7 +482,8 @@ export function JobDetailPanel({
 
           <button
             onClick={onSkip}
-            className="ml-auto px-4 py-2.5 text-[#cccccc] hover:text-[#888888] transition-colors"
+            disabled={isLoading}
+            className="ml-auto px-4 py-2.5 text-[#cccccc] hover:text-[#888888] transition-colors disabled:opacity-50"
             style={{ fontSize: "13px" }}
           >
             Skip →
