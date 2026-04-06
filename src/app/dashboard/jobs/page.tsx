@@ -279,11 +279,11 @@ export default function JobsPage() {
     <div className="flex h-full overflow-hidden">
       {/* ── LEFT PANEL ─────────────────────────────────────────────────────── */}
       <div
-        className="flex flex-col h-full border-r border-[#e8e8e8] bg-white"
+        className="flex flex-col h-full border-r border-[#e8e8e8] bg-[#f9f9fb]"
         style={{ width: "380px", minWidth: "380px" }}
       >
         {/* Header */}
-        <div className="px-5 pt-5 pb-3 border-b border-[#e8e8e8]">
+        <div className="px-4 pt-5 pb-3 border-b border-[#e8e8e8]">
           <div className="flex items-center justify-between mb-3">
             <h1
               style={{
@@ -375,7 +375,7 @@ export default function JobsPage() {
 
         {/* Filters panel */}
         {showFilters && (
-          <div className="border-b border-[#e8e8e8] px-5 py-4 bg-[#fafafa]">
+          <div className="border-b border-[#e8e8e8] px-4 py-4 bg-[#fafafa]">
             <div className="grid grid-cols-2 gap-4 mb-3">
               <div>
                 <p
@@ -493,7 +493,7 @@ export default function JobsPage() {
         )}
 
         {/* Sort bar */}
-        <div className="flex items-center justify-between px-5 py-2 border-b border-[#f5f5f5] bg-[#fafafa] relative">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-[#f5f5f5] bg-[#fafafa] relative">
           <p style={{ fontSize: "11px", color: "#cccccc" }}>
             {visibleJobs.length} role{visibleJobs.length !== 1 ? "s" : ""}
           </p>

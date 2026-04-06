@@ -227,7 +227,7 @@ export default function DashboardPage() {
           </p>
           <Link
             href="/dashboard/resume"
-            className="inline-block px-6 py-2.5 rounded-[7px] text-white text-sm font-medium"
+            className="inline-block px-6 py-2.5 rounded-lg text-white text-sm font-medium"
             style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
           >
             Upload Resume →
@@ -242,7 +242,7 @@ export default function DashboardPage() {
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="mb-7">
-        <h1 style={{ color: "#111111", letterSpacing: "-0.03em", fontSize: "26px", fontWeight: 700 }}>
+        <h1 style={{ color: "#111111", letterSpacing: "-0.03em", fontSize: "24px", fontWeight: 700 }}>
           Good morning, {loading ? "…" : userName} 👋
         </h1>
         <p style={{ fontSize: "13px", color: "#aaaaaa", marginTop: "3px" }}>
@@ -251,19 +251,19 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Stat cards ─────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-4 gap-4 mb-5">
         {stats.map((s, i) => {
           const cfg = statConfigs[i];
           return (
             <div
               key={cfg.label}
-              className={`bg-gradient-to-br ${cfg.gradient} rounded-[10px] p-4`}
+              className={`bg-gradient-to-br ${cfg.gradient} rounded-[10px] p-5`}
               style={{ borderWidth: "1px", borderStyle: "solid", borderColor: `${cfg.accent}20` }}
             >
-              <p style={{ fontSize: "11px", color: "#888888", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+              <p style={{ fontSize: "11px", color: "#888888", letterSpacing: "0.05em", textTransform: "uppercase" }}>
                 {cfg.label}
               </p>
-              <p style={{ fontSize: "30px", color: "#111111", lineHeight: 1.1, marginTop: "6px", letterSpacing: "-0.04em", fontWeight: 700 }}>
+              <p style={{ fontSize: "26px", color: "#111111", lineHeight: 1.1, marginTop: "6px", letterSpacing: "-0.04em", fontWeight: 700 }}>
                 {loading ? "…" : s.value}
               </p>
               <p style={{ fontSize: "12px", color: cfg.accent, marginTop: "6px" }}>
@@ -275,7 +275,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Row 1: Health Score + OPT Countdown ────────────────────────────── */}
-      <div className="grid gap-5 mb-5" style={{ gridTemplateColumns: "1fr 290px" }}>
+      <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: "1fr 290px" }}>
 
         {/* Health Score */}
         <div className="bg-white border border-[#e8e8e8] rounded-[10px] p-5 shadow-sm">
@@ -338,7 +338,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Row 2: Top Jobs + Right Panel ──────────────────────────────────── */}
-      <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 330px" }}>
+      <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 330px" }}>
 
         {/* Top Matched Jobs */}
         <div className="bg-white border border-[#e8e8e8] rounded-[10px] overflow-hidden shadow-sm">
@@ -424,7 +424,7 @@ export default function DashboardPage() {
               </p>
               <span style={{
                 fontSize: "10px", background: "#f0f0f0", color: "#aaaaaa",
-                padding: "2px 8px", borderRadius: "4px",
+                padding: "2px 8px", borderRadius: "4px", fontWeight: 500, letterSpacing: "0.02em",
               }}>
                 Coming Soon
               </span>
@@ -445,7 +445,7 @@ export default function DashboardPage() {
               </p>
               <span style={{
                 fontSize: "10px", background: "#f0f0f0", color: "#aaaaaa",
-                padding: "2px 8px", borderRadius: "4px",
+                padding: "2px 8px", borderRadius: "4px", fontWeight: 500, letterSpacing: "0.02em",
               }}>
                 Coming Soon
               </span>

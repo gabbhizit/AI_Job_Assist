@@ -21,13 +21,13 @@ function ScoreRing({ score }: { score: number }) {
   return (
     <div className="relative flex items-center justify-center w-10 h-10">
       <svg className="absolute inset-0 -rotate-90" width="40" height="40">
-        <circle cx="20" cy="20" r={r} fill="none" stroke="#e8e8e8" strokeWidth="2.5" />
+        <circle cx="20" cy="20" r={r} fill="none" stroke="#efefef" strokeWidth="2.5" />
         <circle
           cx="20" cy="20" r={r} fill="none" stroke={color} strokeWidth="2.5"
           strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
         />
       </svg>
-      <span style={{ fontSize: "10px", color: "#111111", lineHeight: 1, fontWeight: 600 }}>{score}</span>
+      <span style={{ fontSize: "11px", color: "#111111", lineHeight: 1, fontWeight: 600 }}>{score}</span>
     </div>
   );
 }
@@ -76,7 +76,7 @@ export function Sidebar() {
       style={{ width: "220px", minWidth: "220px", height: "100vh", position: "sticky", top: 0 }}
     >
       {/* Logo */}
-      <div className="px-3 mb-8 flex items-center gap-2">
+      <div className="px-3 mb-6 flex items-center gap-2">
         <div
           className="flex items-center justify-center rounded-[7px] shadow-sm"
           style={{ width: "28px", height: "28px", background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
@@ -89,7 +89,7 @@ export function Sidebar() {
       </div>
 
       {/* Health Score */}
-      <div className="flex items-center gap-3 px-3 mb-6 pb-5 border-b border-[#f0f0f0]">
+      <div className="flex items-center gap-3 px-3 mb-5 pb-4 border-b border-[#f0f0f0]">
         <ScoreRing score={healthScore} />
         <div>
           <p style={{ fontSize: "11px", color: "#aaaaaa", lineHeight: 1 }}>Health Score</p>
@@ -100,7 +100,7 @@ export function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex flex-col gap-0.5 flex-1">
+      <nav className="flex flex-col gap-1 flex-1">
         {navItems.map(({ to, label, icon: Icon, color, disabled }) => {
           if (disabled) {
             return (
@@ -112,8 +112,8 @@ export function Sidebar() {
                 <Icon size={15} strokeWidth={1.8} color="#aaaaaa" />
                 <span style={{ fontSize: "13px", lineHeight: 1, color: "#888888", flex: 1 }}>{label}</span>
                 <span style={{
-                  fontSize: "9px", background: "#f0f0f0", color: "#aaaaaa",
-                  padding: "1px 5px", borderRadius: "3px", lineHeight: "14px",
+                  fontSize: "10px", background: "#f0f0f0", color: "#aaaaaa",
+                  padding: "2px 6px", borderRadius: "4px", lineHeight: "14px",
                 }}>
                   Soon
                 </span>
@@ -153,7 +153,7 @@ export function Sidebar() {
       </nav>
 
       {/* Bottom */}
-      <div className="flex flex-col gap-0.5 border-t border-[#f0f0f0] pt-4 mt-4">
+      <div className="flex flex-col gap-1 border-t border-[#f0f0f0] pt-4 mt-4">
         <button
           onClick={() => setOpenModal("profile")}
           className="flex items-center gap-3 px-3 py-2 rounded-[6px] w-full text-left transition-colors hover:bg-[#f5f5f5]"
@@ -184,7 +184,7 @@ export function Sidebar() {
         </button>
         <button
           onClick={() => setOpenModal("upgrade")}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-[7px] w-full text-left transition-all border"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-[7px] w-full text-left transition-all border mt-2"
           style={{
             background: "linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.1))",
             color: "#6366f1",
