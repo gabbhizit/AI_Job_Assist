@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import Link from "next/link";
 
 function LoginContent() {
   const searchParams = useSearchParams();
@@ -69,7 +70,10 @@ function LoginContent() {
             Continue with Google
           </Button>
           <p className="text-xs text-muted-foreground text-center">
-            By signing in, you agree to our Terms of Service and Privacy Policy.
+            By signing in, you agree to our{" "}
+            <Link href="/terms" className="underline hover:text-foreground">Terms of Service</Link>
+            {" "}and{" "}
+            <Link href="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>.
           </p>
         </CardContent>
       </Card>

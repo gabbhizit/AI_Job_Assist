@@ -19,8 +19,9 @@ export async function POST(
     action: "save" | "unsave" | "dismiss" | "undismiss" | "apply" | "click_apply_link";
   };
 
-  if (!action) {
-    return NextResponse.json({ error: "Missing action" }, { status: 400 });
+  const validActions = ["save", "unsave", "dismiss", "undismiss", "apply", "click_apply_link"];
+  if (!action || !validActions.includes(action)) {
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   }
 
   // Determine the new user_status
