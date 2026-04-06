@@ -74,7 +74,7 @@ export function JobCard({
   const salary = formatSalary(salaryMin, salaryMax);
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="hover:shadow-sm transition-shadow">
       <CardContent className="pt-6">
         <div className="flex justify-between items-start gap-4">
           <div className="flex-1 min-w-0">
@@ -101,7 +101,7 @@ export function JobCard({
               {postedAt && <span>{formatDate(postedAt)}</span>}
             </div>
           </div>
-          <div className={`text-2xl font-bold ${scoreColor}`}>{score}</div>
+          <div className={`text-xl font-semibold ${scoreColor}`}>{score}</div>
         </div>
 
         {/* Why matched */}
@@ -112,14 +112,14 @@ export function JobCard({
         {/* Skills */}
         {skills.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-3">
-            {skills.slice(0, 8).map((skill) => (
+            {skills.slice(0, 6).map((skill) => (
               <Badge key={skill} variant="outline" className="text-xs">
                 {skill}
               </Badge>
             ))}
-            {skills.length > 8 && (
+            {skills.length > 6 && (
               <Badge variant="outline" className="text-xs">
-                +{skills.length - 8} more
+                +{skills.length - 6} more
               </Badge>
             )}
           </div>
