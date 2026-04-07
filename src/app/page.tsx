@@ -295,7 +295,7 @@ function Navbar() {
         {/* Right CTA */}
         <div className="hidden md:flex items-center gap-3">
           <Link href="/login">
-            <button className="px-4 py-2 rounded-lg transition-all border"
+            <button className="px-4 py-2 rounded-lg transition-all border cursor-pointer"
               style={{
                 fontSize: "14px", fontWeight: 500,
                 color: scrolled ? "#374151" : "rgba(255,255,255,0.9)",
@@ -306,7 +306,7 @@ function Navbar() {
             </button>
           </Link>
           <Link href="/login">
-            <button className="px-4 py-2 rounded-lg text-white transition-all hover:opacity-90"
+            <button className="px-4 py-2 rounded-lg text-white transition-all hover:opacity-90 cursor-pointer"
               style={{ fontSize: "14px", fontWeight: 600, background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
               Get Started Free
             </button>
@@ -346,13 +346,13 @@ function Navbar() {
           </div>
           <div className="flex flex-col gap-3 mt-auto">
             <Link href="/login" onClick={() => setMobileOpen(false)}>
-              <button className="w-full py-3.5 rounded-xl border border-white/20 text-white transition-colors hover:bg-white/10"
+              <button className="w-full py-3.5 rounded-xl border border-white/20 text-white transition-colors hover:bg-white/10 cursor-pointer"
                 style={{ fontSize: "16px", fontWeight: 500 }}>
                 Log In
               </button>
             </Link>
             <Link href="/login" onClick={() => setMobileOpen(false)}>
-              <button className="w-full py-3.5 rounded-xl text-white transition-opacity hover:opacity-90"
+              <button className="w-full py-3.5 rounded-xl text-white transition-opacity hover:opacity-90 cursor-pointer"
                 style={{ fontSize: "16px", fontWeight: 600, background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
                 Get Started Free
               </button>
@@ -789,7 +789,7 @@ export default function Home() {
                   ))}
                 </div>
                 <Link href="/login">
-                  <button className="w-full py-3 rounded-xl border transition-all hover:bg-gray-50"
+                  <button className="w-full py-3 rounded-xl border transition-all hover:bg-gray-50 cursor-pointer"
                     style={{ fontSize: "14px", fontWeight: 600, color: "#374151", borderColor: "#e5e7eb" }}>
                     Get started free
                   </button>
@@ -870,7 +870,7 @@ export default function Home() {
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
               <Link href="/login">
-                <button className="flex items-center gap-2 px-8 py-4 rounded-xl text-white transition-all hover:opacity-90"
+                <button className="flex items-center gap-2 px-8 py-4 rounded-xl text-white transition-all hover:opacity-90 cursor-pointer"
                   style={{ fontSize: "16px", fontWeight: 700, background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
                   Get started free <ArrowRight size={16} />
                 </button>
