@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { toast } from "sonner";
-import { Search, SlidersHorizontal, X, ChevronDown, Check } from "lucide-react";
+import { Search, SlidersHorizontal, X, ChevronDown, Check, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -322,8 +322,7 @@ export default function JobsPage() {
     <div className="flex h-full overflow-hidden">
       {/* ── LEFT PANEL ─────────────────────────────────────────────────────── */}
       <div
-        className="flex flex-col h-full border-r border-[#e8e8e8] bg-[#f9f9fb]"
-        style={{ width: "380px", minWidth: "380px" }}
+        className={`flex-col h-full border-r border-[#e8e8e8] bg-[#f9f9fb] w-full md:w-[380px] md:min-w-[380px] ${selectedId ? "hidden md:flex" : "flex"}`}
       >
         {/* Header */}
         <div className="px-4 pt-5 pb-3 border-b border-[#e8e8e8]">
@@ -620,18 +619,33 @@ export default function JobsPage() {
       </div>
 
       {/* ── RIGHT PANEL ────────────────────────────────────────────────────── */}
-      <div className="flex-1 h-full overflow-hidden">
+      <div className={`flex-col h-full overflow-hidden ${selectedId ? "flex" : "hidden md:flex"} flex-1`}>
+        {/* Mobile back button */}
+        {selectedId && (
+          <div className="md:hidden flex items-center px-4 py-3 border-b border-[#e8e8e8] bg-white flex-shrink-0">
+            <button
+              onClick={() => setSelectedId(null)}
+              className="flex items-center gap-1.5 transition-colors hover:text-[#6366f1]"
+              style={{ fontSize: "13px", color: "#6366f1" }}
+            >
+              <ArrowLeft size={15} />
+              Back to jobs
+            </button>
+          </div>
+        )}
         {selectedJob ? (
-          <JobDetailPanel
-            job={selectedJob}
-            userSkills={userSkills}
-            isApplied={selectedJob.userStatus === "applied"}
-            isLoading={pendingJobIds.has(selectedJob.jobId)}
-            onApply={() => handleApply(selectedJob)}
-            onSkip={() => handleSkip(selectedJob)}
-            onShare={() => setSharingJob(selectedJob)}
-            onReport={() => setReportingJob(selectedJob)}
-          />
+          <div className="flex-1 overflow-hidden h-full">
+            <JobDetailPanel
+              job={selectedJob}
+              userSkills={userSkills}
+              isApplied={selectedJob.userStatus === "applied"}
+              isLoading={pendingJobIds.has(selectedJob.jobId)}
+              onApply={() => handleApply(selectedJob)}
+              onSkip={() => handleSkip(selectedJob)}
+              onShare={() => setSharingJob(selectedJob)}
+              onReport={() => setReportingJob(selectedJob)}
+            />
+          </div>
         ) : (
           <div className="flex items-center justify-center h-full" style={{ background: "#f7f8fc" }}>
             <div className="text-center">

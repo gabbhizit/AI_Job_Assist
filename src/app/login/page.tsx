@@ -29,7 +29,7 @@ function LoginContent() {
   return (
     <div className="min-h-screen flex" style={{ fontFamily: "var(--font-dm-sans), 'Inter', sans-serif" }}>
       {/* Left — form panel */}
-      <div className="flex-1 flex flex-col justify-center px-8 py-16 bg-white" style={{ maxWidth: "480px" }}>
+      <div className="flex-1 flex flex-col justify-center px-6 py-10 md:px-8 md:py-16 bg-white" style={{ maxWidth: "480px" }}>
         <div className="w-full">
           <Link href="/" className="flex items-center gap-2.5 mb-12">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center"

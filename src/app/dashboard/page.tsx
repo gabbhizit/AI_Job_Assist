@@ -302,7 +302,7 @@ export default function DashboardPage() {
   // ── No resume state ──────────────────────────────────────────────────────────
   if (!loading && !hasResume) {
     return (
-      <div className="px-8 py-7">
+      <div className="px-4 py-5 md:px-8 md:py-7">
         <div className="text-center py-16">
           <h1 className="text-2xl font-bold mb-4" style={{ color: "#111111", letterSpacing: "-0.03em" }}>
             Welcome to OfferPath 👋
@@ -324,7 +324,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="px-8 py-7" style={{ maxWidth: "1100px" }}>
+    <div className="px-4 py-5 md:px-8 md:py-7 w-full" style={{ maxWidth: "1100px" }}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="mb-7">
@@ -337,7 +337,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Stat cards ─────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-5">
         {stats.map((s, i) => {
           const cfg = statConfigs[i];
           return (
@@ -361,14 +361,14 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Row 1: Health Score + OPT Countdown ────────────────────────────── */}
-      <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: "1fr 290px" }}>
+      <div className="flex flex-col md:flex-row gap-4 mb-4">
 
         {/* Health Score */}
-        <div className="bg-white border border-[#e8e8e8] rounded-[10px] p-5 shadow-sm">
+        <div className="flex-1 bg-white border border-[#e8e8e8] rounded-[10px] p-5 shadow-sm">
           <p style={{ fontSize: "11px", color: "#aaaaaa", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "16px" }}>
             Search Health Score
           </p>
-          <div className="flex items-center gap-8">
+          <div className="flex flex-col sm:flex-row items-center gap-5 sm:gap-8">
             <HealthGauge score={loading ? 0 : healthScore} />
             <div className="flex-1">
               <p style={{ fontSize: "13px", color: "#555555", lineHeight: 1.7 }}>
@@ -398,14 +398,16 @@ export default function DashboardPage() {
         </div>
 
         {/* OPT Countdown */}
-        <OPTCountdown optEndDate={optEndDate} loading={loading} />
+        <div className="md:w-[290px] md:flex-shrink-0">
+          <OPTCountdown optEndDate={optEndDate} loading={loading} />
+        </div>
       </div>
 
       {/* ── Row 2: Top Jobs + Right Panel ──────────────────────────────────── */}
-      <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 330px" }}>
+      <div className="flex flex-col md:flex-row gap-4">
 
         {/* Top Matched Jobs */}
-        <div className="bg-white border border-[#e8e8e8] rounded-[10px] overflow-hidden shadow-sm">
+        <div className="flex-1 min-w-0 bg-white border border-[#e8e8e8] rounded-[10px] overflow-hidden shadow-sm">
           <div className="flex items-center justify-between px-5 py-4 border-b border-[#f0f0f0]">
             <p style={{ fontSize: "11px", color: "#aaaaaa", letterSpacing: "0.05em", textTransform: "uppercase" }}>
               Top Matched Jobs Today
@@ -476,7 +478,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Salary */}
-                <span style={{ fontSize: "12px", color: "#cccccc", flexShrink: 0 }}>
+                <span className="hidden sm:inline" style={{ fontSize: "12px", color: "#cccccc", flexShrink: 0 }}>
                   {formatSalary(match.jobs.salary_min, match.jobs.salary_max)}
                 </span>
               </div>
@@ -485,7 +487,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Right panel — Coming Soon */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 md:w-[330px] md:flex-shrink-0">
           {/* Today's Actions */}
           <div className="bg-white border border-[#e8e8e8] rounded-[10px] overflow-hidden shadow-sm">
             <div className="px-5 py-4 border-b border-[#f0f0f0] flex items-center gap-2">

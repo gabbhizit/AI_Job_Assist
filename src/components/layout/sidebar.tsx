@@ -75,7 +75,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
 
   return (
     <aside
-      className="flex flex-col border-r border-[#e8e8e8] py-5 px-3 bg-white shadow-sm hidden md:flex"
+      className="flex flex-col border-r border-[#e8e8e8] py-5 px-3 bg-white shadow-sm"
       style={{ width: "220px", minWidth: "220px", height: "100vh", position: "sticky", top: 0 }}
     >
       {/* Logo */}

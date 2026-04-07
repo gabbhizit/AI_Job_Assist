@@ -10,7 +10,9 @@ export default function DashboardLayout({
   return (
     <div className="flex h-screen w-full overflow-hidden" style={{ background: "#f7f8fc" }}>
       {/* Desktop sidebar */}
-      <Sidebar />
+      <div className="hidden md:flex">
+        <Sidebar />
+      </div>
       {/* Mobile top bar + slide-in sidebar */}
       <MobileNav />
       <main className="flex-1 overflow-y-auto pt-12 md:pt-0">{children}</main>
