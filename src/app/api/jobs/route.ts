@@ -20,6 +20,14 @@ export async function GET(request: NextRequest) {
   const job_type = params.get("job_type") || null;
   const experience_level = params.get("experience_level") || null;
 
+  // Fetch user's min_match_score preference (default 40)
+  const { data: userPrefs } = await supabase
+    .from("user_preferences")
+    .select("min_match_score")
+    .eq("user_id", user.id)
+    .single();
+  const minMatchScore: number = (userPrefs as { min_match_score?: number } | null)?.min_match_score ?? 40;
+
   // Use !inner so we can filter on embedded jobs columns
   let query = supabase
     .from("job_matches")
@@ -51,6 +59,7 @@ export async function GET(request: NextRequest) {
     `)
     .eq("user_id", user.id)
     .is("user_status", null)
+    .gte("score", minMatchScore)
     .order("score", { ascending: false })
     .limit(50); // fetch more so filters still yield enough results
 

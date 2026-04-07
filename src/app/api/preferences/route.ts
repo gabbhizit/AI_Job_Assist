@@ -38,6 +38,7 @@ export async function PUT(request: Request) {
     excluded_companies,
     notify_email,
     notify_frequency,
+    min_match_score,
   } = body;
 
   const { data: preferences, error } = await supabase
@@ -51,6 +52,7 @@ export async function PUT(request: Request) {
       excluded_companies,
       notify_email,
       notify_frequency,
+      ...(min_match_score !== undefined && { min_match_score }),
     })
     .eq("user_id", user.id)
     .select()

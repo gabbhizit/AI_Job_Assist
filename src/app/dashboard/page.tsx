@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { Building2, Zap, Lock, ArrowRight } from "lucide-react";
+import { Building2, Zap, Lock, ArrowRight, Clock } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface MatchedJob {
@@ -100,6 +100,88 @@ function formatDate(): string {
   return new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 }
 
+// ── OPT Countdown ────────────────────────────────────────────────────────────
+function OPTCountdown({ optEndDate, loading }: { optEndDate: string | null; loading: boolean }) {
+  const containerStyle = {
+    background: "linear-gradient(135deg, rgba(217,119,6,0.08), rgba(245,158,11,0.04))",
+    border: "1px solid rgba(217,119,6,0.2)",
+  };
+
+  if (loading) {
+    return (
+      <div className="rounded-[10px] p-5 shadow-sm flex flex-col" style={containerStyle}>
+        <p style={{ fontSize: "11px", color: "#d97706", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "10px", fontWeight: 500 }}>
+          OPT Countdown
+        </p>
+        <div className="flex flex-col items-center justify-center flex-1 py-4">
+          <div className="h-4 w-4 border-2 border-[#d97706] border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!optEndDate) {
+    return (
+      <div className="rounded-[10px] p-5 shadow-sm flex flex-col" style={containerStyle}>
+        <p style={{ fontSize: "11px", color: "#d97706", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "10px", fontWeight: 500 }}>
+          OPT Countdown
+        </p>
+        <div className="flex flex-col items-center justify-center flex-1 gap-3 py-4">
+          <Lock size={22} color="#d97706" strokeWidth={1.5} style={{ opacity: 0.5 }} />
+          <p style={{ fontSize: "12px", color: "#aaaaaa", textAlign: "center", lineHeight: 1.6 }}>
+            Add your OPT end date in your profile to enable countdown tracking
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const endMs = new Date(optEndDate + "T00:00:00").getTime();
+  const daysLeft = Math.ceil((endMs - Date.now()) / (1000 * 60 * 60 * 24));
+  const expired = daysLeft < 0;
+  const urgent = daysLeft >= 0 && daysLeft <= 30;
+  const warning = daysLeft > 30 && daysLeft <= 90;
+
+  const accentColor = expired ? "#dc2626" : urgent ? "#dc2626" : warning ? "#d97706" : "#16a34a";
+  const label = expired
+    ? "OPT expired"
+    : urgent
+    ? "Urgent — act now"
+    : warning
+    ? "Running low"
+    : "You have time";
+
+  const formattedDate = new Date(optEndDate + "T00:00:00").toLocaleDateString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+  });
+
+  return (
+    <div className="rounded-[10px] p-5 shadow-sm flex flex-col" style={containerStyle}>
+      <p style={{ fontSize: "11px", color: "#d97706", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "10px", fontWeight: 500 }}>
+        OPT Countdown
+      </p>
+      <div className="flex flex-col items-center justify-center flex-1 gap-2 py-2">
+        <Clock size={20} color={accentColor} strokeWidth={1.5} style={{ opacity: 0.8 }} />
+        <p style={{ fontSize: "48px", fontWeight: 700, color: accentColor, lineHeight: 1, letterSpacing: "-0.04em" }}>
+          {expired ? "0" : daysLeft}
+        </p>
+        <p style={{ fontSize: "13px", color: "#555555", fontWeight: 500 }}>
+          {expired ? "days (expired)" : "days remaining"}
+        </p>
+        <span style={{
+          fontSize: "10px", color: accentColor, background: `${accentColor}12`,
+          padding: "2px 8px", borderRadius: "4px", fontWeight: 500,
+        }}>
+          {label}
+        </span>
+        <p style={{ fontSize: "11px", color: "#aaaaaa", marginTop: "4px" }}>
+          Expires {formattedDate}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ── Stat card configs (exact from Figma statConfigs) ─────────────────────────
 const statConfigs = [
   { label: "Applied this week",  gradient: "from-[#6366f1]/8 to-[#6366f1]/3",  accent: "#6366f1" },
@@ -119,6 +201,7 @@ export default function DashboardPage() {
   const [savedCount, setSavedCount] = useState(0);
   const [userName, setUserName] = useState("there");
   const [weekNum, setWeekNum] = useState<number | null>(null);
+  const [optEndDate, setOptEndDate] = useState<string | null>(null);
   const [appStats, setAppStats] = useState<{
     appliedThisWeek: number;
     interviewCount: number;
@@ -176,6 +259,9 @@ export default function DashboardPage() {
         );
         setWeekNum(Math.max(1, weeks));
       }
+
+      // OPT end date
+      setOptEndDate(profileData.profile?.opt_end_date ?? null);
 
       setLoading(false);
     }
@@ -311,30 +397,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* OPT Countdown — Coming Soon */}
-        <div
-          className="rounded-[10px] p-5 shadow-sm flex flex-col"
-          style={{
-            background: "linear-gradient(135deg, rgba(217,119,6,0.08), rgba(245,158,11,0.04))",
-            border: "1px solid rgba(217,119,6,0.2)",
-          }}
-        >
-          <p style={{ fontSize: "11px", color: "#d97706", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "10px", fontWeight: 500 }}>
-            OPT Countdown
-          </p>
-          <div className="flex flex-col items-center justify-center flex-1 gap-3 py-4">
-            <Lock size={22} color="#d97706" strokeWidth={1.5} style={{ opacity: 0.5 }} />
-            <p style={{ fontSize: "12px", color: "#aaaaaa", textAlign: "center", lineHeight: 1.6 }}>
-              Add your OPT end date in your profile to enable countdown tracking
-            </p>
-            <span style={{
-              fontSize: "10px", background: "#f0f0f0", color: "#aaaaaa",
-              padding: "2px 8px", borderRadius: "4px",
-            }}>
-              Coming Soon
-            </span>
-          </div>
-        </div>
+        {/* OPT Countdown */}
+        <OPTCountdown optEndDate={optEndDate} loading={loading} />
       </div>
 
       {/* ── Row 2: Top Jobs + Right Panel ──────────────────────────────────── */}
@@ -361,10 +425,23 @@ export default function DashboardPage() {
             </div>
           ) : topJobs.length === 0 ? (
             <div className="px-5 py-8 text-center">
-              <p style={{ fontSize: "13px", color: "#aaaaaa" }}>No job matches yet.</p>
-              <Link href="/dashboard/resume" style={{ fontSize: "12px", color: "#6366f1" }} className="underline mt-1 inline-block">
-                Upload your resume to get started
-              </Link>
+              {hasResume ? (
+                <>
+                  <p style={{ fontSize: "13px", color: "#aaaaaa" }}>No jobs above your match threshold.</p>
+                  <p style={{ fontSize: "12px", color: "#aaaaaa", marginTop: "4px", lineHeight: 1.6 }}>
+                    Try lowering your min score in{" "}
+                    <span style={{ color: "#555555", fontWeight: 500 }}>Settings</span>
+                    {" "}(bottom of sidebar), or wait for the next daily pipeline run.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p style={{ fontSize: "13px", color: "#aaaaaa" }}>No job matches yet.</p>
+                  <Link href="/dashboard/resume" style={{ fontSize: "12px", color: "#6366f1" }} className="underline mt-1 inline-block">
+                    Upload your resume to get started
+                  </Link>
+                </>
+              )}
             </div>
           ) : (
             topJobs.map((match, i) => (
